@@ -22,7 +22,6 @@ def get_db():
 
         """
     Dependency de FastAPI para proporcionar una sesión de BD por petición.
-
     Abre una sesión al inicio de la request y garantiza el cierre al finalizar,
     evitando fugas de conexiones y asegurando un scope transaccional controlado.
     """
