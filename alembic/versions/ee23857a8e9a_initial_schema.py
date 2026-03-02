@@ -1,8 +1,17 @@
 """initial schema
 
 Revision ID: ee23857a8e9a
-Revises: 
+Revises: 0
 Create Date: 2026-03-02 13:33:22.279674
+
+Esta migración crea todas las tablas necesarias para el funcionamiento de la aplicación.
+
+Los modelos del esquema son:
+- households
+- users linked to households
+- OTP-based authentication flow (auth_otps
+- reservations
+- waitlist_entries
 
 """
 from typing import Sequence, Union

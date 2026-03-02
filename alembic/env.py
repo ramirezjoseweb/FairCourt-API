@@ -1,10 +1,12 @@
-import os 
-import sys 
+import os
+import sys
 
+# Añade el directorio raíz del proyecto al path para que Alembic
+# pueda importar correctamente los módulos de la aplicación.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.db import Base
-from app import models # importante: fuerza a cargar los modelos
+from app import models  # Importante: fuerza la carga de los modelos para autogenerate
 
 from logging.config import fileConfig
 
@@ -13,38 +15,43 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Objeto de configuración de Alembic.
+# Proporciona acceso a los valores definidos en el archivo alembic.ini.
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# Interpreta el archivo de configuración para el sistema de logging.
+# Esta línea configura los loggers definidos en el .ini.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
+# ---------------------------------------------------------------------
+# Configuración de metadata para autogeneración
+# ---------------------------------------------------------------------
+
+# Se establece el metadata de los modelos ORM para permitir que
+# Alembic detecte automáticamente cambios en el esquema.
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
+# ---------------------------------------------------------------------
+# Modo OFFLINE
+# ---------------------------------------------------------------------
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """
+    Ejecuta las migraciones en modo 'offline'.
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
+    En este modo:
+    - No se crea un Engine real.
+    - No se establece conexión directa con la base de datos.
+    - No es necesario que exista un driver DBAPI disponible.
 
-    Calls to context.execute() here emit the given string to the
-    script output.
+    En su lugar:
+    - Se utiliza únicamente la URL de conexión.
+    - Las operaciones generan directamente sentencias SQL en el
+      script de salida.
 
+    Este modo es útil cuando se desea generar scripts SQL sin
+    conectarse a la base de datos.
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -58,12 +65,20 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+# ---------------------------------------------------------------------
+# Modo ONLINE
+# ---------------------------------------------------------------------
+
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    """
+    Ejecuta las migraciones en modo 'online'.
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
+    En este modo:
+    - Se crea un Engine de SQLAlchemy.
+    - Se establece una conexión real con la base de datos.
+    - Las migraciones se aplican directamente sobre la BD.
 
+    Este es el modo habitual en desarrollo y producción.
     """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
@@ -73,12 +88,17 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata
         )
 
         with context.begin_transaction():
             context.run_migrations()
 
+
+# ---------------------------------------------------------------------
+# Punto de entrada según modo de ejecución
+# ---------------------------------------------------------------------
 
 if context.is_offline_mode():
     run_migrations_offline()
