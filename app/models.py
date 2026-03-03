@@ -14,6 +14,8 @@ Se modelan:
 
 Las restricciones a nivel de base de datos garantizan integridad
 incluso en escenarios de concurrencia.
+
+Si en models.py cambias algo, recuerda: alembic revision --autogenerate + alembic upgrade head.
 """
 
 import enum
