@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from jose import jwt
 from passlib.context import CryptContext
@@ -11,7 +11,8 @@ from .config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    # UTC "naive" para compatibilidad con SQLite
+    return datetime.utcnow()
 
 def gen_otp(length: int) -> str:
     # OTP numérico
