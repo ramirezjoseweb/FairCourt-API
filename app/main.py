@@ -13,6 +13,8 @@ Este módulo actúa como punto de entrada del backend.
 
 
 from fastapi import FastAPI
+from app.routers.auth import router as auth_router
+
 from .db import engine
 from . import models
 
@@ -25,6 +27,8 @@ app = FastAPI(
     description="API para la gestión de reservas de pistas de pádel.",
     version="0.1.0",
 )
+
+app.include_router(auth_router) 
 
 # Para empezar rápido, creamos tablas así.
 # Luego lo sustituimos por Alembic (migraciones) cuando lo inicialicemos.
