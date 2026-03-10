@@ -33,4 +33,3 @@ class ReservationOut(Basemodel):
     end_at: datetime
     status: str
     created_at: datetime
-
