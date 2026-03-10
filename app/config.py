@@ -12,4 +12,9 @@ class Settings(BaseModel):
     # Dev mode: imprime OTP en logs 
     DEV_PRINT_OTP: bool = True 
 
+    # Reglas de reserva
+    BOOKING_WINDOW_DAYS: int = 7 # 7 son los dias de margen para reservar
+    MAX_ACTIVE_RESERVATIONS_PER_WEEK: int = 2 # limite de reservas por usuario
+    SLOT_DURATION_HOURS: int = 1 # duracion de cada reserva en horas
+
 settings = Settings() # Crea una instancia de Settings
