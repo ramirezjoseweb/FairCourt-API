@@ -20,3 +20,17 @@ class TokenOut(BaseModel):
 # Clase del mensaje de respuesta 
 class MessageOut(BaseModel):
     message: str
+
+
+class CreateReservationIn(BaseModel): 
+    start_at: datetime 
+
+
+class ReservationOut(Basemodel): 
+    id: int
+    household_id: int 
+    start_at: datetime
+    end_at: datetime
+    status: str
+    created_at: datetime
+
