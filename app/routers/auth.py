@@ -41,7 +41,7 @@ def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
         if existing_user_for_house.email.lower() != payload.email.lower():
             raise HTTPException(
                 status_code=409,
-                detail=f"Esta vivienda {payload.house_code} ya tiene un usuario registrado con otro email: {existing_user_for_house.email}."
+                detail=f"Esta vivienda: {payload.house_code} ya tiene un usuario registrado con otro email: {existing_user_for_house.email}."
             )
         
         # Re-login del usuario existente

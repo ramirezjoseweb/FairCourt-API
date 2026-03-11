@@ -30,6 +30,6 @@ def create_access_token(subject: str) -> tuple[str, datetime]: # create_access_t
     Crea un JWT donde 'sub' identifica al usuario (aquí usamos el email).
     """
     expire = utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_MINUTES) # timedelta es una función que crea una diferencia de tiempo
-    payload = {"sub": subject, "exp": expire} # payload es un diccionario que contiene la información del token
+    payload = {"sub": subject, "exp": expire} # payload con subject y expiration time
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALG) # jwt.encode es una función que codifica el payload en un token
     return token, expire

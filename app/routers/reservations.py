@@ -59,8 +59,7 @@ def create_reservation(
         )
 
     if not slot_is_free(db, start_at): 
-        raise HTTPException(status_code=409, detail="La franja solicitada ya está ocupada") 
-        
+        raise HTTPException(status_code=409, detail="La franja solicitada ya está ocupada")   
     weekly_count = count_active_reservations_this_week(db, household.id, start_at)
     if weekly_count >= settings.MAX_ACTIVE_RESERVATIONS_PER_WEEK: 
         raise HTTPException(
