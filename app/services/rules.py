@@ -41,6 +41,7 @@ def slot_is_free(db: Session, household_id: int, start_at, end_at) -> bool:
         .filter(Reservation.start_at == start_at)
         .filter(Reservation.status == ReservationStatus.ACTIVE.value)
         .first()
+        # esto busca si existe una reserva con la misma fecha de inicio y estado activo
     )
 
     return existing is None 

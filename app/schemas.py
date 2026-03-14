@@ -21,11 +21,11 @@ class TokenOut(BaseModel):
 class MessageOut(BaseModel):
     message: str
 
-
+# Clase de la petición de reserva 
 class CreateReservationIn(BaseModel): 
     start_at: datetime 
 
-
+# Clase de la respuesta de reserva 
 class ReservationOut(Basemodel): 
     id: int
     household_id: int 
