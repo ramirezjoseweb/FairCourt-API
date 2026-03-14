@@ -26,7 +26,7 @@ def count_active_reservations_this_week(db: Session, household_id: int, start_at
     return(
         db.query(Reservation) 
         .filter(
-            Reservation.houselhold_id == household_id, # Esto es para que solo cuente las reservas de esa vivienda
+            Reservation.household_id == household_id, # Esto es para que solo cuente las reservas de esa vivienda
             Reservation.status == ReservationStatus.ACTIVE.value, # esto es para que solo cuente las reservas activas
             Reservation.start_at >= week_start, # la fecha de la reserva tiene que ser mayor o igual a lunes    
             Reservation.start_at < week_end # y menor que el siguiente lunes
