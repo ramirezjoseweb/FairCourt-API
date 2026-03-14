@@ -34,8 +34,10 @@ def count_active_reservations_this_week(db: Session, household_id: int, start_at
         .count()
     )
 
-def slot_is_free(db: Session, household_id: int, start_at, end_at) -> bool: 
-    """ Comprubea si la franja horaria está libre """
+def slot_is_free(db: Session, start_at) -> bool: 
+    """ Comprubea si la franja horaria está libre 
+        Como la pista es única y cada slot empieza en una hora exacta,
+        basta con verificar que no exista una reserva activa con ese mismo start_at."""
     existing = (
         db.query(Reservation)
         .filter(Reservation.start_at == start_at)

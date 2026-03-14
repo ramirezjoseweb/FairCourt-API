@@ -54,7 +54,7 @@ def create_reservation(
     end_at = start_at + timedelta(hours=settings.SLOT_DURATION_HOURS) 
 
     # Comprueba si la fecha de inicio está en el pasado 
-    if starts_at < now: 
+    if start_at < now: 
         raise HTTPException(status_code=400, detail="No se puede reservar en el pasado")
 
     # Comprueba si la fecha de inicio está dentro de la ventana de reserva 

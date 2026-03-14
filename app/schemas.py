@@ -26,7 +26,7 @@ class CreateReservationIn(BaseModel):
     start_at: datetime 
 
 # Clase de la respuesta de reserva 
-class ReservationOut(Basemodel): 
+class ReservationOut(BaseModel): 
     id: int
     household_id: int 
     start_at: datetime
