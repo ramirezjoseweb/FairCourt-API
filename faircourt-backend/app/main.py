@@ -13,6 +13,8 @@ Este módulo actúa como punto de entrada del backend.
 
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.routers.auth import router as auth_router
 from app.routers.users import router as users_router
 from app.routers.reservations import router as reservations_router
@@ -20,6 +22,7 @@ from app.scheduler import start_scheduler, shutdown_scheduler
 from app.routers.audit import router as audit_router
 from app.routers.unlock import router as unlock_router
 from app.routers.notifications import router as notifications_router
+
 
 from .db import engine
 from . import models
@@ -32,6 +35,17 @@ app = FastAPI(
     title="FairCourt API",
     description="API para la gestión de reservas de pistas de pádel.",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth_router) 
