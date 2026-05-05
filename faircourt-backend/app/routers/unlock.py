@@ -1,0 +1,184 @@
+from __future__ import annotations
+
+from pydantic import HttpUrl
+from fastapi.dependencies.models import Dependant
+
+
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.db import get_db
+from app.deps import get_current_user
+from app.models import UnlockProposal, UnlockVote, Household, User
+from app.schemas import(
+    UnlockProposalIn, 
+    UnlockVoteIn, 
+    UnlockProposalOut, 
+    UnlockVoteOut,
+)
+from app.security import utcnow
+from app.services.audit import log_event
+from app.services.unlock import resolve_unlock_proposals_if_needed
+
+router = APIRouter(prefix="/unlock", tags=["unlock"]) 
+
+# router para crear una propuesta de desbloqueo
+@router.post("/proposal", response_model=UnlockProposalOut, status_code=status.HTTP_201_CREATED)
+def create_unlock_proposal(
+    payload: UnlockProposalIn, 
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),  
+): 
+    household = db.query(Household).filter(Household.id == current_user.household_id).first() 
+    if not household: 
+        raise HTTPException(status_code=404, detail="Vivienda no encontrada") 
+
+    now = utcnow() 
+
+    if not household.suspended_until or household.suspended_until <= now: 
+        raise HTTPException(
+            status_code=400, 
+            detail="La vivienda no está suspendida, no necesita desbloqueo",
+        )
+
+    existing = (
+        db.query(UnlockProposal) 
+        .filter(UnlockProposal.target_household_id == household.id) 
+        .filter(UnlockProposal.status == "OPEN") 
+        .first() 
+    )
+    if existing: 
+        raise HTTPException(
+            status_code=409, 
+            detail="Ya existe una propuesta de desbloqueo abierta para esta vivienda.", 
+        )
+    
+    proposal = UnlockProposal(
+        target_household_id = household.id, 
+        created_by_user_id = current_user.id, 
+        reason= payload.reason, 
+        status = "OPEN", 
+        created_at = now, 
+        closes_at = now + timedelta(hours=settings.UNLOCK_VOTING_HOURS),
+    )
+
+    db.add(proposal) 
+    db.commit() 
+    db.refresh(proposal) 
+
+    log_event(
+        db, 
+        event="UNLOCK_VOTE_CREATED", 
+        household_id=household.id, 
+        user_id=current_user.id, 
+        metadata={
+            "proposal_id": proposal.id, 
+            "reason": proposal.reason, 
+            "closes_at": proposal.closes_at.isoformat(), 
+        },
+    )
+    db.commit() 
+    
+    return proposal
+
+# Router para ver propuestas abiertas
+@router.get("/proposals", response_model=list[UnlockProposalOut])
+def list_unlock_proposals(
+    db: Session = Depends(get_db), 
+): 
+    proposals = (
+        db.query(UnlockProposal)
+        .order_by(UnlockProposal.created_at.desc())
+        .all() 
+    )
+
+    result = []
+
+    # Resolvemos las propuestas que hayan expirado
+    for proposal in proposals: 
+        proposal = resolve_unlock_proposals_if_needed(db, proposal) 
+        result.append(proposal) 
+
+    # Devolvemos las propuestas que estén abiertas
+    return result
+
+# Router para votar
+@router.post("/proposal/{proposal_id}/vote", response_model=UnlockVoteOut, status_code=status.HTTP_201_CREATED)
+def cast_unlock_vote(
+    proposal_id: int, 
+    payload: UnlockVoteIn, 
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user), 
+): 
+    # Convertimos el voto a mayúsculas
+    vote_value = payload.vote.upper() 
+    if vote_value not in {"YES", "NO"}: 
+        raise HTTPException(status_code=400, detail="El voto debe ser YES o NO")
+
+    # Buscamos la propuesta
+    proposal = db.query(UnlockProposal).filter(UnlockProposal.id == proposal_id).first() 
+    if not proposal: 
+        raise HTTPException(status_code=404, detail="Propuesta no encontrada")
+
+    # Resolvemos la propuesta
+    proposal = resolve_unlock_proposals_if_needed(db, proposal) 
+    if proposal.status != "OPEN": 
+        raise HTTPException(status_code=400, detail="La propuesta ya no está abierta") 
+
+    # Verificamos que la vivienda no sea la misma que la propuesta
+    if proposal.target_household_id == current_user.household_id: 
+        raise HTTPException(status_code=403, detail="La vivienda afectada no puede votar en su propia propuesta.") 
+
+    # Obtenemos la vivienda del usuario
+    voter_household = db.query(Household).filter(Household.id == current_user.household_id).first() 
+    now = utcnow() 
+ 
+    # Verificamos que la vivienda esté activa
+    if not voter_household or not voter_household.is_active: 
+        raise HTTPException(status_code=403, detail="Tu vivienda no está activa")
+
+    # Verificamos que la vivienda no esté suspendida
+    if voter_household.suspended_until and voter_household.suspended_until > now: 
+        raise HTTPException(status_code=403, detail="Tu vivienda está suspendida, no puedes votar.")  
+    
+    # Verificamos que la vivienda no haya votado ya
+    existing_vote = (
+        db.query(UnlockVote) 
+        .filter(UnlockVote.proposal_id == proposal_id) 
+        .filter(UnlockVote.voter_household_id == current_user.household_id) 
+        .first() 
+    )
+
+    # Si la vivienda ya ha votado, lanzamos error
+    if existing_vote: 
+        raise HTTPException(status_code=409, detail="Tu vivienda ya ha votado para esta propuesta") 
+
+    # Creamos el voto
+    vote = UnlockVote(
+        proposal_id=proposal_id, 
+        voter_household_id = current_user.household_id,
+        vote = vote_value, 
+    )
+
+    db.add(vote)
+    db.commit() 
+    db.refresh(vote)
+
+    log_event(
+        db, 
+        event="UNLOCK_VOTE_CAST",
+        household_id=current_user.household_id, 
+        user_id=current_user.id, 
+        metadata = {
+            "proposal_id": proposal.id, 
+            "vote": vote.vote, 
+        }, 
+    ) 
+    db.commit() 
+ 
+    resolve_unlock_proposals_if_needed(db, proposal) 
+
+    return vote

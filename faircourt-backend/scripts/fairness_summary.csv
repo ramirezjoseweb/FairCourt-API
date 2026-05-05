@@ -1,0 +1,3 @@
+policy,accepted_total,rejected_total,no_shows_total,prime_time_accepted,waitlist_entries,waitlist_promotions,gini_usage
+A_weekly_cap_cooldown,40,12,2,35,48,2,0.325
+B_prime_quota_daily_window,41,0,1,36,60,2,0.3695
