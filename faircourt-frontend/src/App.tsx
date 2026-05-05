@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { requestOtp, verifyOtp } from "./api/auth";
+import { Dashboard } from "./components/Dashboard"; // Importamos el componente Dashboard. 
 
 // Componente principal de la aplicación.
 function App() {
@@ -79,29 +80,8 @@ function App() {
 
   // Renderizado condicional basado en el estado del flujo.
   // Si hay token y estamos en el paso final, muestra el contenido de la sesión iniciada.
-  if (token && step === "done") {
-    return (
-      <main className="min-h-screen bg-slate-100 p-6">
-        <section className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow">
-          <h1 className="text-3xl font-bold text-slate-900">FairCourt</h1>
-          <p className="mt-3 text-slate-600">
-            Sesión iniciada correctamente.
-          </p>
-
-          <div className="mt-6 rounded-xl bg-slate-50 p-4">
-            <p className="text-sm font-medium text-slate-700">Token JWT guardado</p>
-            <p className="mt-2 break-all text-xs text-slate-500">{token}</p>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="mt-6 rounded-xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-700"
-          >
-            Cerrar sesión
-          </button>
-        </section>
-      </main>
-    );
+  if (token) {
+    return <Dashboard token={token} onLogout={handleLogout} />; // Si existe token, muestra el dashboard.
   }
   // Si no hay token o no estamos en el paso final, muestra el formulario de inicio de sesión.
   return (
