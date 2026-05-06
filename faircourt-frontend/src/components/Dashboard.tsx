@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getMe, type MeResponse } from "../api/me";
+import { SlotsPanel } from "./SlotsPanel";
 
 type DashboardProps = {
     token: string;
@@ -119,6 +120,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
                         </article>
                     </div>
                 )}
+                <SlotsPanel />
 
                 {/* Sección para mostrar el token JWT. */}
                 <section className="rounded-2xl bg-white p-6 shadow">

@@ -89,4 +89,6 @@ Para ejecutar la aplicación en entorno de desarrollo:
 
 El parámetro --reload permite recargar automáticamente
 el servidor ante cambios en el código.
+
+npm run dev
 """
