@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { requestOtp, verifyOtp } from "./api/auth";
-import { Dashboard } from "./components/Dashboard"; // Importamos el componente Dashboard. 
+import { Dashboard } from "./components/DashboardHome"; // Importamos el componente Dashboard. 
 
 // Componente principal de la aplicación.
 function App() {
