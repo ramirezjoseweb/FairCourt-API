@@ -2,11 +2,17 @@ documentar /scripts/simulate_fairness.py y explicar en documentacion
 comprobar que en get /me sale la información adecuada
 el proyecto esta cogiendo mal la hora en unlock_votes
 una vivienda puede hacer una propuesta de desbloqueo dos veces o mas???
-El siguiente ajuste interesante sería que, cuando reserves desde SlotsPanel, también se actualice automáticamente MyReservationsPanel. Ahora mismo son paneles independientes, así que si reservas arriba, puede que tengas que pulsar Actualizar abajo. Funciona, pero luego lo podemos mejorar.
-
+centralizar un refreshKey en Dashboard
+Privatizar las notificaciones y poner pestañita?
 
 
 1. Frontend
+	Notificaciones
+	Auditoría
+	Check-in
+	Votación desbloqueo
+	Pulido visual/navegación
+
 2. Convertir proyecto a offline-first
 
 
