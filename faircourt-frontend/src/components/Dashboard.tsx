@@ -6,6 +6,7 @@ import { MyReservationsPanel } from "./MyReservationsPanel";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { SlotsPanel } from "./SlotsPanel";
 import { AuditPanel } from "./AuditPanel";
+import { UnlockPanel } from "./UnlockPanel";
 
 type DashboardProps = {
     token: string;
@@ -76,15 +77,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         }
 
         if (activeView === "unlock") {
-            return (
-                <section className="rounded-2xl bg-white p-6 shadow">
-                    <h2 className="text-2xl font-bold text-slate-900">Desbloqueos</h2>
-                    <p className="mt-2 text-slate-600">
-                        Próximamente podrás crear y votar propuestas de desbloqueo
-                        excepcional.
-                    </p>
-                </section>
-            );
+            return <UnlockPanel me={me} onRefreshMe={loadMe} />;
         }
 
         return null;
