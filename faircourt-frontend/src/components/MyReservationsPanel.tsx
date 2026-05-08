@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import {
     cancelReservation,
     getMyReservations,
+    getCheckinQr,
     type Reservation,
+    type CheckinQrResponse,
 } from "../api/reservations";
 
 /**
@@ -75,6 +77,8 @@ export function MyReservationsPanel() {
     const [actionLoading, setActionLoading] = useState<number | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [checkinData, setCheckinData] = useState<CheckinQrResponse | null>(null);
+    const [checkinLoading, setCheckinLoading] = useState<number | null>(null);
 
     /**
      * Carga las reservas de la vivienda autenticada desde el backend.
@@ -125,6 +129,32 @@ export function MyReservationsPanel() {
         }
     }
 
+    /**
+ * Solicita al backend la URL de check-in para una reserva activa.
+ *
+ * @param reservation Reserva sobre la que se solicita el check-in.
+ */
+    async function handleGetCheckin(reservation: Reservation) {
+        setCheckinLoading(reservation.id);
+        setError(null);
+        setMessage(null);
+        setCheckinData(null);
+
+        try {
+            const data = await getCheckinQr(reservation.id);
+            setCheckinData(data);
+            setMessage("URL de check-in generada correctamente.");
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Error generando URL de check-in."
+            );
+        } finally {
+            setCheckinLoading(null);
+        }
+    }
+
     useEffect(() => {
         loadReservations();
     }, []);
@@ -158,6 +188,40 @@ export function MyReservationsPanel() {
                 <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
                     {error}
                 </p>
+            )}
+
+            {checkinData && (
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-700">
+                        Check-in generado para reserva #{checkinData.reservation_id}
+                    </p>
+
+                    <p className="mt-2 text-xs text-slate-500">
+                        Expira: {formatDateTime(checkinData.expires_at)}
+                    </p>
+
+                    <p className="mt-3 break-all rounded-xl bg-white p-3 text-xs text-slate-600">
+                        {checkinData.checkin_url}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <a
+                            href={checkinData.checkin_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                        >
+                            Abrir check-in
+                        </a>
+
+                        <button
+                            onClick={() => navigator.clipboard.writeText(checkinData.checkin_url)}
+                            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                            Copiar URL
+                        </button>
+                    </div>
+                </div>
             )}
 
             <div className="mt-6 space-y-3">
@@ -203,7 +267,15 @@ export function MyReservationsPanel() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => handleGetCheckin(reservation)}
+                                    disabled={!isActive || checkinLoading === reservation.id}
+                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {checkinLoading === reservation.id ? "Generando..." : "Check-in"}
+                                </button>
+
                                 <button
                                     onClick={() => handleCancel(reservation)}
                                     disabled={!isActive || isCancelling}

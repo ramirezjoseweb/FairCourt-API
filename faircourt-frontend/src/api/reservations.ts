@@ -26,6 +26,29 @@ export type Reservation = {
     real_status?: string;
 };
 
+/**
+ * Respuesta generada por el backend para realizar check-in.
+ *
+ * Contiene la URL firmada que permite validar la asistencia
+ * dentro de la ventana temporal permitida.
+ */
+export type CheckinQrResponse = {
+    reservation_id: number;
+    checkin_url: string;
+    expires_at: string;
+};
+
+/**
+ * Solicita al backend la URL de check-in de una reserva.
+ *
+ * @param reservationId Identificador de la reserva.
+ */
+export async function getCheckinQr(reservationId: number) {
+    return apiRequest<CheckinQrResponse>(
+        `/reservations/${reservationId}/checkin-qr`
+    );
+}
+
 // Función para obtener los slots de un día.
 export async function getSlots(day: string) {
     return apiRequest<Slot[]>(`/reservations/slots?day=${day}`);

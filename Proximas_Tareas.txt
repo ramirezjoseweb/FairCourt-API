@@ -4,10 +4,10 @@ el proyecto esta cogiendo mal la hora en unlock_votes
 una vivienda puede hacer una propuesta de desbloqueo dos veces o mas???
 centralizar un refreshKey en Dashboard
 Privatizar las notificaciones y poner pestañita?
+El panel muestra Vivienda #id, no el código tipo A1. Es suficiente para funcionar, pero más adelante podríamos mejorar /unlock/proposals para devolver target_household_code.
 
 
 1. Frontend
-	Notificaciones
 	Auditoría
 	Check-in
 	Votación desbloqueo
