@@ -31,6 +31,7 @@ def read_me(
         "id": current_user.id,
         "email": current_user.email,
         "household_id": current_user.household_id,
+        "household_code": household.code if household else None,
         "strikes": household.strikes if household else None, 
         "suspended_until": household.suspended_until if household else None,
         "active_waitlists_count": len(active_waitlists),

@@ -33,7 +33,11 @@ export function DashboardHome({ me }: DashboardHomeProps) {
                 <article className="rounded-2xl bg-white p-6 shadow">
                     <p className="text-sm font-medium text-slate-500">Vivienda</p>
                     <p className="mt-2 text-xl font-bold text-slate-900">
-                        ID {me.household_id}
+                        {me.household_code ?? `ID ${me.household_id}`}
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                        Identificador interno: {me.household_id}
                     </p>
                 </article>
 

@@ -4,6 +4,7 @@ export type MeResponse = {
     id: number;
     email: string;
     household_id: number;
+    household_code?: string | null;
     strikes?: number;
     suspended_until?: string | null;
     active_waitlists_count?: number;

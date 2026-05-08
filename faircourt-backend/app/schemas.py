@@ -92,7 +92,8 @@ class WaitlistSummaryOut(BaseModel):
 class MeOut(BaseModel): 
     id: int
     email: str 
-    Household_id: int
+    household_id: int
+    household_code: str | None = None
     strikes: int 
     suspended_until: datetime | None = None
     active_waitlist_count: int 
