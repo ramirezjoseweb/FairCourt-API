@@ -5,6 +5,7 @@ import { DashboardHome } from "./DashboardHome";
 import { MyReservationsPanel } from "./MyReservationsPanel";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { SlotsPanel } from "./SlotsPanel";
+import { AuditPanel } from "./AuditPanel";
 
 type DashboardProps = {
     token: string;
@@ -71,14 +72,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         }
 
         if (activeView === "audit") {
-            return (
-                <section className="rounded-2xl bg-white p-6 shadow">
-                    <h2 className="text-2xl font-bold text-slate-900">Auditoría</h2>
-                    <p className="mt-2 text-slate-600">
-                        Próximamente mostraremos aquí el registro de eventos de la vivienda.
-                    </p>
-                </section>
-            );
+            return <AuditPanel />;
         }
 
         if (activeView === "unlock") {
