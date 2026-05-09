@@ -6,6 +6,14 @@ import {
     type Slot,
 } from "../api/reservations";
 
+type SlotsPanelProps = {
+    /**
+     * Callback opcional que se ejecuta cuando una acción modifica datos globales:
+     * creación de reserva, entrada en waitlist, etc.
+     */
+    onChanged?: () => void;
+};
+
 // Función que convierte una fecha a formato string para input date.
 function toInputDate(date: Date) {
     return date.toISOString().slice(0, 10);
@@ -31,7 +39,7 @@ function formatDateTime(value: string) {
 }
 
 // Componente que muestra el panel de slots.
-export function SlotsPanel() {
+export function SlotsPanel({ onChanged }: SlotsPanelProps) {
     // Estado para almacenar el día seleccionado, los slots, el estado de carga, el estado de acción, el mensaje y los errores.
     const [day, setDay] = useState(toInputDate(new Date()));
     const [slots, setSlots] = useState<Slot[]>([]);
@@ -69,6 +77,7 @@ export function SlotsPanel() {
             await createReservation(slot.start_at);
             setMessage(`Reserva creada para ${formatDateTime(slot.start_at)}.`);
             await loadSlots();
+            onChanged?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error creando reserva.");
         } finally {
@@ -87,6 +96,7 @@ export function SlotsPanel() {
             await joinWaitlist(slot.start_at);
             setMessage(`Te has unido a la lista de espera para ${formatDateTime(slot.start_at)}.`);
             await loadSlots();
+            onChanged?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error entrando en waitlist.");
         } finally {

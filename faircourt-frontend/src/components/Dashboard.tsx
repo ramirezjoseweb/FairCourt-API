@@ -26,6 +26,7 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
     const [activeView, setActiveView] = useState<AppView>("home");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     /**
      * Carga la información del usuario/vivienda autenticada desde el backend.
@@ -42,6 +43,16 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         } finally {
             setLoading(false);
         }
+    }
+
+    /**
+     * Fuerza la recarga de datos dependientes entre paneles.
+     * Se usa cuando una acción modifica el estado del sistema:
+     * reservas, waitlist, notificaciones o datos de la vivienda.
+     */
+    function handleDataChanged() {
+        setRefreshKey((current) => current + 1);
+        loadMe();
     }
 
     useEffect(() => {
@@ -61,15 +72,20 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         }
 
         if (activeView === "slots") {
-            return <SlotsPanel />;
+            return <SlotsPanel onChanged={handleDataChanged} />;
         }
 
         if (activeView === "reservations") {
-            return <MyReservationsPanel />;
+            return (
+                <MyReservationsPanel
+                    refreshKey={refreshKey}
+                    onChanged={handleDataChanged}
+                />
+            );
         }
 
         if (activeView === "notifications") {
-            return <NotificationsPanel />;
+            return <NotificationsPanel refreshKey={refreshKey} />;
         }
 
         if (activeView === "audit") {

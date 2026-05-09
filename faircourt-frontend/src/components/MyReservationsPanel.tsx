@@ -7,6 +7,19 @@ import {
     type CheckinQrResponse,
 } from "../api/reservations";
 
+type MyReservationsPanelProps = {
+    /**
+     * Valor externo que fuerza la recarga del panel cuando cambia.
+     */
+    refreshKey?: number;
+
+    /**
+     * Callback opcional que se ejecuta cuando una acción modifica datos globales:
+     * cancelación de reserva, check-in, etc.
+     */
+    onChanged?: () => void;
+};
+
 /**
  * Formatea una fecha ISO a formato legible en español.
  *
@@ -71,7 +84,10 @@ function getStatusClasses(status: string) {
  * - visualizar su estado,
  * - cancelar reservas activas.
  */
-export function MyReservationsPanel() {
+export function MyReservationsPanel({
+    refreshKey = 0,
+    onChanged,
+}: MyReservationsPanelProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -122,6 +138,7 @@ export function MyReservationsPanel() {
             await cancelReservation(reservation.id);
             setMessage("Reserva cancelada correctamente.");
             await loadReservations();
+            onChanged?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error cancelando reserva.");
         } finally {
@@ -157,7 +174,7 @@ export function MyReservationsPanel() {
 
     useEffect(() => {
         loadReservations();
-    }, []);
+    }, [refreshKey]);
 
     return (
         <section className="rounded-2xl bg-white p-6 shadow">

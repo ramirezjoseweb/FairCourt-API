@@ -20,6 +20,13 @@ function formatDateTime(value: string) {
     });
 }
 
+type NotificationsPanelProps = {
+    /**
+     * Valor externo que fuerza la recarga del panel cuando cambia.
+     */
+    refreshKey?: number;
+};
+
 /**
  * Traduce el tipo interno de notificación a una etiqueta más legible.
  *
@@ -71,7 +78,9 @@ function getNotificationTypeClasses(type: string) {
  * - distinguir entre leídas y no leídas,
  * - marcar notificaciones como leídas.
  */
-export function NotificationsPanel() {
+export function NotificationsPanel({
+    refreshKey = 0,
+}: NotificationsPanelProps) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -122,7 +131,7 @@ export function NotificationsPanel() {
 
     useEffect(() => {
         loadNotifications();
-    }, []);
+    }, [refreshKey]);
 
     const unreadCount = notifications.filter((item) => !item.is_read).length;
 
@@ -171,8 +180,8 @@ export function NotificationsPanel() {
                         <article
                             key={notification.id}
                             className={`rounded-2xl border p-5 ${notification.is_read
-                                    ? "border-slate-200 bg-white"
-                                    : "border-slate-300 bg-slate-50"
+                                ? "border-slate-200 bg-white"
+                                : "border-slate-300 bg-slate-50"
                                 }`}
                         >
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

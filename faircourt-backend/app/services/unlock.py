@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import UnlockProposal, UnlockVote, Household
 from app.services.audit import log_event
+from app.services.notifications import notify_household
 from app.security import utcnow
 
 # Este archivo se encarga de la lógica de desbloqueo de cuentas
@@ -41,7 +42,16 @@ def resolve_unlock_proposals_if_needed(db: Session, proposal: UnlockProposal):
             household.strikes = household.strikes - 1 
             household.is_active = True
 
-        log_event(
+        # Lanzamos notificación
+        notify_household(
+        db,
+        household_id=proposal.target_household_id,
+        type="ACCOUNT_UNLOCKED",
+        message=f"Tu cuenta ha sido desbloqueada.",
+    )
+    db.commit()
+
+    log_event(
         db, 
         event="UNLOCK_APPROVED",
         household_id=proposal.target_household_id, 
