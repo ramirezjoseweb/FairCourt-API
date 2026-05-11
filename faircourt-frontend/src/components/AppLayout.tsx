@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMyNotifications } from "../api/notifications";
+import { OfflineBanner } from "./OfflineBanner";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 export type AppView =
     | "home"
@@ -31,6 +33,7 @@ export function AppLayout({
     onLogout,
     children,
 }: AppLayoutProps) {
+    const isOnline = useOnlineStatus();
     const [unreadCount, setUnreadCount] = useState(0);
 
     /**
@@ -61,6 +64,7 @@ export function AppLayout({
 
     return (
         <main className="min-h-screen bg-slate-100">
+            <OfflineBanner isOnline={isOnline} />
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
                 <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -76,8 +80,8 @@ export function AppLayout({
                                 key={item.id}
                                 onClick={() => onChangeView(item.id)}
                                 className={`rounded-xl px-4 py-2 text-sm font-medium transition ${activeView === item.id
-                                        ? "bg-slate-900 text-white"
-                                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                    ? "bg-slate-900 text-white"
+                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                                     }`}
                             >
                                 {item.label}
@@ -87,8 +91,8 @@ export function AppLayout({
                         <button
                             onClick={() => onChangeView("notifications")}
                             className={`relative rounded-xl px-4 py-2 text-sm font-medium transition ${activeView === "notifications"
-                                    ? "bg-slate-900 text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                ? "bg-slate-900 text-white"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                                 }`}
                         >
                             Notificaciones
@@ -98,6 +102,15 @@ export function AppLayout({
                                 </span>
                             )}
                         </button>
+
+                        <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${isOnline
+                                ? "bg-green-50 text-green-700"
+                                : "bg-amber-50 text-amber-700"
+                                }`}
+                        >
+                            {isOnline ? "Online" : "Offline"}
+                        </span>
 
                         <button
                             onClick={onLogout}

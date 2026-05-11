@@ -91,4 +91,6 @@ El parámetro --reload permite recargar automáticamente
 el servidor ante cambios en el código.
 
 npm run dev
+npm run build
+npm run preview
 """
