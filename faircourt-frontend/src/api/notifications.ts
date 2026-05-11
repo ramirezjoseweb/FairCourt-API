@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { loadFromCache, saveToCache } from "../utils/offlineCache";
 
 /**
  * Representa una notificación interna generada por el backend.
@@ -19,10 +20,25 @@ export type Notification = {
 /**
  * Obtiene las notificaciones asociadas a la vivienda autenticada.
  *
- * El backend filtra por household_id usando el JWT del usuario actual.
+ * En modo online actualiza la caché local.
+ * En modo offline devuelve la última versión almacenada.
  */
 export async function getMyNotifications() {
-    return apiRequest<Notification[]>("/notifications/me");
+    const cacheKey = "faircourt_cache_notifications";
+
+    try {
+        const data = await apiRequest<Notification[]>("/notifications/me");
+        saveToCache(cacheKey, data);
+        return data;
+    } catch (error) {
+        const cached = loadFromCache<Notification[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        throw error;
+    }
 }
 
 /**

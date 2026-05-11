@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { loadFromCache, saveToCache } from "../utils/offlineCache";
 
 // Tipo para representar un slot.
 export type Slot = {
@@ -49,9 +50,30 @@ export async function getCheckinQr(reservationId: number) {
     );
 }
 
-// Función para obtener los slots de un día.
+/**
+ * Consulta las franjas disponibles para un día concreto.
+ *
+ * Si hay conexión, guarda la respuesta en caché.
+ * Si la petición falla, intenta devolver los últimos slots guardados para ese día.
+ *
+ * @param day Fecha en formato YYYY-MM-DD.
+ */
 export async function getSlots(day: string) {
-    return apiRequest<Slot[]>(`/reservations/slots?day=${day}`);
+    const cacheKey = `faircourt_cache_slots_${day}`;
+
+    try {
+        const data = await apiRequest<Slot[]>(`/reservations/slots?day=${day}`);
+        saveToCache(cacheKey, data);
+        return data;
+    } catch (error) {
+        const cached = loadFromCache<Slot[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        throw error;
+    }
 }
 
 // Función para crear una reserva.
@@ -80,12 +102,35 @@ export async function joinWaitlist(startAt: string) {
     });
 }
 
-// Función para obtener las reservas del usuario actual.
+/**
+ * Obtiene todas las reservas asociadas a la vivienda autenticada.
+ *
+ * Si el backend responde correctamente, guarda la respuesta en caché.
+ * Si no hay conexión, devuelve las últimas reservas guardadas.
+ */
 export async function getMyReservations() {
-    return apiRequest<Reservation[]>("/reservations/me");
+    const cacheKey = "faircourt_cache_reservations";
+
+    try {
+        const data = await apiRequest<Reservation[]>("/reservations/me");
+        saveToCache(cacheKey, data);
+        return data;
+    } catch (error) {
+        const cached = loadFromCache<Reservation[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        throw error;
+    }
 }
 
-// Función para cancelar una reserva.
+/**
+ * Cancela una reserva existente.
+ *
+ * @param reservationId Identificador de la reserva a cancelar.
+ */
 export async function cancelReservation(reservationId: number) {
     return apiRequest<Reservation>(`/reservations/${reservationId}/cancel`, {
         method: "POST",

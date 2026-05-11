@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { loadFromCache, saveToCache } from "../utils/offlineCache";
 
 /**
  * Payload para crear una propuesta de desbloqueo excepcional.
@@ -55,9 +56,26 @@ export async function createUnlockProposal(
 
 /**
  * Obtiene las propuestas de desbloqueo existentes.
+ *
+ * Si hay conexión, guarda la respuesta en caché.
+ * Si no hay conexión, muestra la última versión almacenada.
  */
 export async function getUnlockProposals() {
-    return apiRequest<UnlockProposal[]>("/unlock/proposals");
+    const cacheKey = "faircourt_cache_unlock_proposals";
+
+    try {
+        const data = await apiRequest<UnlockProposal[]>("/unlock/proposals");
+        saveToCache(cacheKey, data);
+        return data;
+    } catch (error) {
+        const cached = loadFromCache<UnlockProposal[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        throw error;
+    }
 }
 
 /**

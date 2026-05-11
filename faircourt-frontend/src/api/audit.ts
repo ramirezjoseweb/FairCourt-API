@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import { loadFromCache, saveToCache } from "../utils/offlineCache";
 
 /**
  * Representa un evento de auditoría generado por el backend.
@@ -20,8 +21,23 @@ export type AuditLogEntry = {
 /**
  * Obtiene el registro de auditoría asociado a la vivienda autenticada.
  *
- * El backend filtra automáticamente por household_id a partir del JWT.
+ * Si hay conexión, actualiza la caché.
+ * Si no hay conexión, devuelve los últimos eventos guardados.
  */
 export async function getMyAuditLog() {
-    return apiRequest<AuditLogEntry[]>("/audit/me");
+    const cacheKey = "faircourt_cache_audit";
+
+    try {
+        const data = await apiRequest<AuditLogEntry[]>("/audit/me");
+        saveToCache(cacheKey, data);
+        return data;
+    } catch (error) {
+        const cached = loadFromCache<AuditLogEntry[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        throw error;
+    }
 }
