@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import {
     castUnlockVote,
     createUnlockProposal,
@@ -73,6 +74,7 @@ function getProposalStatusClasses(status: string) {
  * - votar propuestas de otras viviendas.
  */
 export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
+    const isOnline = useOnlineStatus();
     const [proposals, setProposals] = useState<UnlockProposal[]>([]);
     const [reason, setReason] = useState("");
     const [loading, setLoading] = useState(false);
@@ -108,6 +110,12 @@ export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
      * Solo tiene sentido si la vivienda está suspendida.
      */
     async function handleCreateProposal(event: React.FormEvent) {
+        // Si no hay conexión, no se puede realizar la acción.
+        if (!isOnline) {
+            setError("Crear una propuesta requiere conexión.");
+            return;
+        }
+
         event.preventDefault();
 
         if (!reason.trim()) {
@@ -140,6 +148,12 @@ export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
      * @param vote Valor del voto.
      */
     async function handleVote(proposal: UnlockProposal, vote: "YES" | "NO") {
+        // Si no hay conexión, no se puede realizar la acción.
+        if (!isOnline) {
+            setError("Votar una propuesta requiere conexión.");
+            return;
+        }
+
         setVotingProposalId(proposal.id);
         setError(null);
         setMessage(null);
@@ -194,6 +208,13 @@ export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
                         {error}
                     </p>
                 )}
+
+                {!isOnline && (
+                    <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                        Estás sin conexión. Puedes consultar las últimas propuestas guardadas, pero
+                        crear propuestas o votar requiere conexión.
+                    </p>
+                )}
             </section>
 
             <section className="rounded-2xl bg-white p-6 shadow">
@@ -226,7 +247,7 @@ export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
                         </div>
 
                         <button
-                            disabled={creating}
+                            disabled={!isOnline || creating}
                             className="rounded-xl bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50"
                         >
                             {creating ? "Creando..." : "Crear propuesta"}
@@ -307,7 +328,7 @@ export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => handleVote(proposal, "YES")}
-                                            disabled={!isOpen || isOwnHousehold || isVoting}
+                                            disabled={!isOnline || !isOpen || isOwnHousehold || isVoting}
                                             className="rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             Sí
@@ -315,7 +336,7 @@ export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
 
                                         <button
                                             onClick={() => handleVote(proposal, "NO")}
-                                            disabled={!isOpen || isOwnHousehold || isVoting}
+                                            disabled={!isOnline || !isOpen || isOwnHousehold || isVoting}
                                             className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             No

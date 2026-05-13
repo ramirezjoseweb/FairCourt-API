@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import {
     cancelReservation,
     getMyReservations,
@@ -88,6 +89,7 @@ export function MyReservationsPanel({
     refreshKey = 0,
     onChanged,
 }: MyReservationsPanelProps) {
+    const isOnline = useOnlineStatus();
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -120,6 +122,12 @@ export function MyReservationsPanel({
      * @param reservation Reserva seleccionada para cancelar.
      */
     async function handleCancel(reservation: Reservation) {
+        // Si no hay conexión, no se puede realizar la acción.
+        if (!isOnline) {
+            setError("Cancelar una reserva requiere conexión.");
+            return;
+        }
+
         const confirmed = window.confirm(
             `¿Seguro que quieres cancelar la reserva del ${formatDateTime(
                 reservation.start_at
@@ -152,6 +160,11 @@ export function MyReservationsPanel({
  * @param reservation Reserva sobre la que se solicita el check-in.
  */
     async function handleGetCheckin(reservation: Reservation) {
+        // Si no hay conexión, no se puede realizar la acción.
+        if (!isOnline) {
+            setError("El check-in requiere conexión.");
+            return;
+        }
         setCheckinLoading(reservation.id);
         setError(null);
         setMessage(null);
@@ -188,10 +201,10 @@ export function MyReservationsPanel({
 
                 <button
                     onClick={loadReservations}
-                    disabled={loading}
+                    disabled={loading || !isOnline}
                     className="rounded-xl border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                 >
-                    {loading ? "Actualizando..." : "Actualizar"}
+                    {!isOnline ? "Sin conexión" : loading ? "Actualizando..." : "Actualizar"}
                 </button>
             </div>
 
@@ -204,6 +217,13 @@ export function MyReservationsPanel({
             {error && (
                 <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
                     {error}
+                </p>
+            )}
+
+            {!isOnline && (
+                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                    Estás sin conexión. Puedes consultar tus últimas reservas guardadas, pero
+                    cancelar o hacer check-in requiere conexión.
                 </p>
             )}
 
@@ -287,7 +307,7 @@ export function MyReservationsPanel({
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     onClick={() => handleGetCheckin(reservation)}
-                                    disabled={!isActive || checkinLoading === reservation.id}
+                                    disabled={!isOnline || !isActive || checkinLoading === reservation.id}
                                     className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     {checkinLoading === reservation.id ? "Generando..." : "Check-in"}
@@ -295,7 +315,7 @@ export function MyReservationsPanel({
 
                                 <button
                                     onClick={() => handleCancel(reservation)}
-                                    disabled={!isActive || isCancelling}
+                                    disabled={!isOnline || !isActive || isCancelling}
                                     className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     {isCancelling ? "Cancelando..." : "Cancelar"}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import {
     getMyNotifications,
     markNotificationAsRead,
@@ -81,6 +82,7 @@ function getNotificationTypeClasses(type: string) {
 export function NotificationsPanel({
     refreshKey = 0,
 }: NotificationsPanelProps) {
+    const isOnline = useOnlineStatus();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -111,6 +113,12 @@ export function NotificationsPanel({
      * @param notification Notificación seleccionada.
      */
     async function handleMarkAsRead(notification: Notification) {
+        // Si no hay conexión, no se puede realizar la acción.
+        if (!isOnline) {
+            setError("Marcar una notificación como leída requiere conexión.");
+            return;
+        }
+
         setActionLoading(notification.id);
         setError(null);
 
@@ -166,6 +174,13 @@ export function NotificationsPanel({
                 </p>
             )}
 
+            {!isOnline && (
+                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                    Estás sin conexión. Puedes consultar las últimas notificaciones guardadas,
+                    pero marcarlas como leídas requiere conexión.
+                </p>
+            )}
+
             <div className="mt-6 space-y-3">
                 {!loading && notifications.length === 0 && (
                     <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
@@ -213,7 +228,7 @@ export function NotificationsPanel({
 
                                 <button
                                     onClick={() => handleMarkAsRead(notification)}
-                                    disabled={notification.is_read || isReading}
+                                    disabled={!isOnline || notification.is_read || isReading}
                                     className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                     {notification.is_read

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import {
     createReservation,
     getSlots,
@@ -41,6 +42,7 @@ function formatDateTime(value: string) {
 // Componente que muestra el panel de slots.
 export function SlotsPanel({ onChanged }: SlotsPanelProps) {
     // Estado para almacenar el día seleccionado, los slots, el estado de carga, el estado de acción, el mensaje y los errores.
+    const isOnline = useOnlineStatus();
     const [day, setDay] = useState(toInputDate(new Date()));
     const [slots, setSlots] = useState<Slot[]>([]);
     const [loading, setLoading] = useState(false);
@@ -72,6 +74,12 @@ export function SlotsPanel({ onChanged }: SlotsPanelProps) {
         setError(null);
         setMessage(null);
 
+        // Si no hay conexión, no se puede realizar la acción.
+        if (!isOnline) {
+            setError("Esta acción requiere conexión.");
+            return;
+        }
+
         // Intenta crear la reserva.
         try {
             await createReservation(slot.start_at);
@@ -90,6 +98,12 @@ export function SlotsPanel({ onChanged }: SlotsPanelProps) {
         setActionLoading(slot.start_at);
         setError(null);
         setMessage(null);
+
+        // Si no hay conexión, no se puede realizar la acción.
+        if (!isOnline) {
+            setError("Esta acción requiere conexión.");
+            return;
+        }
 
         // Intenta crear la reserva.
         try {
@@ -155,6 +169,13 @@ export function SlotsPanel({ onChanged }: SlotsPanelProps) {
                 </p>
             )}
 
+            {!isOnline && (
+                <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                    Estás sin conexión. Puedes consultar los últimos slots guardados, pero reservar
+                    o entrar en lista de espera requiere conexión.
+                </p>
+            )}
+
             <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {slots.map((slot) => {
                     const isBusy = actionLoading === slot.start_at;
@@ -201,7 +222,7 @@ export function SlotsPanel({ onChanged }: SlotsPanelProps) {
                                 <div className="flex flex-col gap-2">
                                     <button
                                         onClick={() => handleReserve(slot)}
-                                        disabled={!slot.can_book || isBusy}
+                                        disabled={!isOnline || !slot.can_book || isBusy}
                                         className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         Reservar
@@ -209,7 +230,7 @@ export function SlotsPanel({ onChanged }: SlotsPanelProps) {
 
                                     <button
                                         onClick={() => handleJoinWaitlist(slot)}
-                                        disabled={!slot.can_join_waitlist || isBusy}
+                                        disabled={!isOnline || !slot.can_join_waitlist || isBusy}
                                         className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         Waitlist

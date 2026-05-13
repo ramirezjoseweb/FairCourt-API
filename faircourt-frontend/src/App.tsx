@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { requestOtp, verifyOtp } from "./api/auth";
 import { Dashboard } from "./components/Dashboard"; // Importamos el componente Dashboard. 
+//import { OfflineBanner } from "./components/OfflineBanner";
+import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
 // Componente principal de la aplicación.
 function App() {
   // Estados para manejar el flujo de la aplicación.
+  const isOnline = useOnlineStatus();
   const [houseCode, setHouseCode] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -120,11 +123,10 @@ function App() {
             </div>
             {/* Botón para solicitar el código OTP. */}
             <button
-              disabled={loading}
+              disabled={loading || !isOnline}
               className="w-full rounded-xl bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50"
             >
-              {loading ? "Enviando..." : "Solicitar OTP"}
-            </button>
+              {!isOnline ? "Sin conexión" : loading ? "Enviando..." : "Solicitar OTP"}            </button>
           </form>
         )}
         {/* Formulario para verificar el código OTP. */}
@@ -149,10 +151,10 @@ function App() {
             </div>
             {/* Botón para verificar el código OTP. */}
             <button
-              disabled={loading}
+              disabled={loading || !isOnline}
               className="w-full rounded-xl bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50"
             >
-              {loading ? "Verificando..." : "Verificar OTP"}
+              {!isOnline ? "Sin conexión" : loading ? "Verificando..." : "Verificar OTP"}
             </button>
             {/* Botón para volver al paso anterior. */}
             <button
