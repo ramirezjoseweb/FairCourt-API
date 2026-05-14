@@ -237,6 +237,9 @@ def can_household_book_slot(db: Session, household, start_at, now) -> tuple[bool
         print("RETURN -> WEEKLY_LIMIT_REACHED")
         return False, "WEEKLY_LIMIT_REACHED"
 
+    if household.suspended_until and household.suspended_until > now:
+        return False, "HOUSEHOLD_SUSPENDED"
+
     on_cooldown, cooldown_group = household_is_on_cooldown_for_slot(db, household.id, start_at)
     if on_cooldown:
         return False, "COOLDOWN_ACTIVE"
@@ -396,7 +399,7 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
 
     # Si la vivienda alcanza el limite de strikes, se aplica la suspensión temporal
     if household.strikes >= settings.MAX_STRIKES: 
-        household.is_active = False
+        #household.is_active = False
         household.suspended_until = now + timedelta(days=settings.SUSPENSION_DAYS)
         #suspended_applied = True
 
