@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { getMyAuditLog, type AuditLogEntry } from "../api/audit";
 
+type AuditPanelProps = {
+    /**
+     * Valor externo que fuerza la recarga del panel cuando cambia.
+     */
+    refreshKey?: number;
+};
+
 /**
  * Formatea una fecha ISO a formato legible en español.
  *
@@ -146,7 +153,7 @@ function formatMetadataValue(value: unknown) {
  * Permite consultar los eventos registrados para la vivienda autenticada,
  * aportando trazabilidad sobre las acciones realizadas en el sistema.
  */
-export function AuditPanel() {
+export function AuditPanel({ refreshKey = 0 }: AuditPanelProps) {
     const [entries, setEntries] = useState<AuditLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -170,7 +177,7 @@ export function AuditPanel() {
 
     useEffect(() => {
         loadAuditLog();
-    }, []);
+    }, [refreshKey]);
 
     return (
         <section className="rounded-2xl bg-white p-6 shadow">

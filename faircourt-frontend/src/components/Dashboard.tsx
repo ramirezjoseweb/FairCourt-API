@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getMe, type MeResponse } from "../api/me";
 import { AppLayout, type AppView } from "./AppLayout";
 import { DashboardHome } from "./DashboardHome";
@@ -7,6 +7,8 @@ import { NotificationsPanel } from "./NotificationsPanel";
 import { SlotsPanel } from "./SlotsPanel";
 import { AuditPanel } from "./AuditPanel";
 import { UnlockPanel } from "./UnlockPanel";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { useReconnectSync } from "../hooks/useReconnectSync";
 
 type DashboardProps = {
     token: string;
@@ -27,11 +29,13 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    const isOnline = useOnlineStatus();
+    const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
     /**
      * Carga la información del usuario/vivienda autenticada desde el backend.
      */
-    async function loadMe() {
+    const loadMe = useCallback(async () => {
         setLoading(true);
         setError(null);
 
@@ -43,21 +47,35 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         } finally {
             setLoading(false);
         }
-    }
+    }, []);
 
     /**
      * Fuerza la recarga de datos dependientes entre paneles.
-     * Se usa cuando una acción modifica el estado del sistema:
-     * reservas, waitlist, notificaciones o datos de la vivienda.
+     *
+     * Se usa cuando una acción modifica el estado del sistema o cuando
+     * la aplicación recupera conexión tras haber estado offline.
      */
-    function handleDataChanged() {
+    const handleDataChanged = useCallback(() => {
         setRefreshKey((current) => current + 1);
         loadMe();
-    }
+
+        setSyncMessage("Conexión recuperada. Datos sincronizados.");
+        window.setTimeout(() => setSyncMessage(null), 3000);
+    }, [loadMe]);
 
     useEffect(() => {
         loadMe();
-    }, []);
+    }, [loadMe]);
+
+    /**
+  * Sincroniza datos principales cuando la aplicación recupera conexión.
+     *
+     * Al volver online:
+     * - recarga /me;
+     * - fuerza recarga de paneles dependientes mediante refreshKey.
+     */
+    useReconnectSync(isOnline, handleDataChanged);
+
 
     /**
      * Renderiza la vista activa seleccionada en la navegación.
@@ -89,11 +107,17 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
         }
 
         if (activeView === "audit") {
-            return <AuditPanel />;
+            return <AuditPanel refreshKey={refreshKey} />;
         }
 
         if (activeView === "unlock") {
-            return <UnlockPanel me={me} onRefreshMe={loadMe} />;
+            return (
+                <UnlockPanel
+                    me={me}
+                    refreshKey={refreshKey}
+                    onRefreshMe={loadMe}
+                />
+            );
         }
 
         return null;
@@ -131,6 +155,12 @@ export function Dashboard({ token, onLogout }: DashboardProps) {
             onChangeView={setActiveView}
             onLogout={onLogout}
         >
+            {syncMessage && (
+                <div className="mb-4 rounded-xl bg-green-50 p-3 text-sm text-green-700">
+                    {syncMessage}
+                </div>
+            )}
+
             {renderActiveView()}
 
             {activeView === "home" && (

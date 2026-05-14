@@ -10,6 +10,7 @@ import type { MeResponse } from "../api/me";
 
 type UnlockPanelProps = {
     me: MeResponse;
+    refreshKey?: number;
     onRefreshMe?: () => void;
 };
 
@@ -73,7 +74,11 @@ function getProposalStatusClasses(status: string) {
  * - consultar propuestas existentes,
  * - votar propuestas de otras viviendas.
  */
-export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
+export function UnlockPanel({
+    me,
+    refreshKey = 0,
+    onRefreshMe,
+}: UnlockPanelProps) {
     const isOnline = useOnlineStatus();
     const [proposals, setProposals] = useState<UnlockProposal[]>([]);
     const [reason, setReason] = useState("");
@@ -172,7 +177,7 @@ export function UnlockPanel({ me, onRefreshMe }: UnlockPanelProps) {
 
     useEffect(() => {
         loadProposals();
-    }, []);
+    }, [refreshKey]);
 
     return (
         <section className="space-y-6">
