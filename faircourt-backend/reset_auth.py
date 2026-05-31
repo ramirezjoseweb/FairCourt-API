@@ -28,9 +28,10 @@ def main() -> None:
         db.query(Household).update({Household.is_active: True}) 
         deleted_audit_logs = db.query(AuditLog).delete() 
         deleted_notifications = db.query(Notification).delete() 
+        deleted_strikes = db.query(Household).update({Household.strikes: 0})
         db.commit() 
 
-        print(f"✅ Auth reseteado: {deleted_users} usuarios, {deleted_otps} OTPs, {deleted_reservations} reservas, {deleted_waitlist} listas de espera, {deleted_audit_logs} logs de auditoría, {deleted_votes} votos, {deleted_notifications} notificaciones y strikes reiniciados.")
+        print(f"✅ Auth reseteado: {deleted_users} usuarios, {deleted_otps} OTPs, {deleted_reservations} reservas, {deleted_waitlist} listas de espera, {deleted_audit_logs} logs de auditoría, {deleted_votes} votos, {deleted_notifications} notificaciones y {deleted_strikes} strikes reiniciados.")
     except Exception as e: 
         db.rollback()
         print(f"❌ Error al resetear auth: {e}")

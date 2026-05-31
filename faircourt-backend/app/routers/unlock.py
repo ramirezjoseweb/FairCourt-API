@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from pydantic import HttpUrl
-from fastapi.dependencies.models import Dependant
-
-
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -26,84 +22,132 @@ from app.services.unlock import resolve_unlock_proposals_if_needed
 router = APIRouter(prefix="/unlock", tags=["unlock"]) 
 
 # router para crear una propuesta de desbloqueo
-@router.post("/proposal", response_model=UnlockProposalOut, status_code=status.HTTP_201_CREATED)
-def create_unlock_proposal(
-    payload: UnlockProposalIn, 
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user),  
-): 
-    household = db.query(Household).filter(Household.id == current_user.household_id).first() 
-    if not household: 
-        raise HTTPException(status_code=404, detail="Vivienda no encontrada") 
-
-    now = utcnow() 
-
-    if not household.suspended_until or household.suspended_until <= now: 
-        raise HTTPException(
-            status_code=400, 
-            detail="La vivienda no está suspendida, no necesita desbloqueo",
-        )
-
-    existing = (
-        db.query(UnlockProposal) 
-        .filter(UnlockProposal.target_household_id == household.id) 
-        .filter(UnlockProposal.status == "OPEN") 
-        .first() 
-    )
-    if existing: 
-        raise HTTPException(
-            status_code=409, 
-            detail="Ya existe una propuesta de desbloqueo abierta para esta vivienda.", 
-        )
-    
-    proposal = UnlockProposal(
-        target_household_id = household.id, 
-        created_by_user_id = current_user.id, 
-        reason= payload.reason, 
-        status = "OPEN", 
-        created_at = now, 
-        closes_at = now + timedelta(hours=settings.UNLOCK_VOTING_HOURS),
-    )
-
-    db.add(proposal) 
-    db.commit() 
-    db.refresh(proposal) 
-
-    log_event(
-        db, 
-        event="UNLOCK_VOTE_CREATED", 
-        household_id=household.id, 
-        user_id=current_user.id, 
-        metadata={
-            "proposal_id": proposal.id, 
-            "reason": proposal.reason, 
-            "closes_at": proposal.closes_at.isoformat(), 
-        },
-    )
-    db.commit() 
-    
-    return proposal
-
-# Router para ver propuestas abiertas
 @router.get("/proposals", response_model=list[UnlockProposalOut])
 def list_unlock_proposals(
-    db: Session = Depends(get_db), 
-): 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Lista las propuestas de desbloqueo existentes.
+
+    Para cada propuesta se añade el código público de vivienda
+    asociado a target_household_id, de forma que el frontend pueda
+    mostrar A1, B2, AT1, etc., en lugar del identificador interno.
+    """
     proposals = (
         db.query(UnlockProposal)
         .order_by(UnlockProposal.created_at.desc())
-        .all() 
+        .all()
     )
 
     result = []
 
-    # Resolvemos las propuestas que hayan expirado
-    for proposal in proposals: 
-        proposal = resolve_unlock_proposals_if_needed(db, proposal) 
-        result.append(proposal) 
+    for proposal in proposals:
+        proposal = resolve_unlock_proposals_if_needed(db, proposal)
 
-    # Devolvemos las propuestas que estén abiertas
+        household = (
+            db.query(Household)
+            .filter(Household.id == proposal.target_household_id)
+            .first()
+        )
+
+        result.append(
+            {
+                "id": proposal.id,
+                "target_household_id": proposal.target_household_id,
+                "target_household_code": household.code if household else None,
+                "created_by_user_id": proposal.created_by_user_id,
+                "reason": proposal.reason,
+                "status": proposal.status,
+                "created_at": proposal.created_at,
+                "closes_at": proposal.closes_at,
+                "resolved_at": proposal.resolved_at,
+            }
+        )
+
     return result
+
+@router.post("/proposal", response_model=UnlockProposalOut, status_code=status.HTTP_201_CREATED)
+def create_unlock_proposal(
+    payload: UnlockProposalIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Crea una propuesta de desbloqueo excepcional para la vivienda autenticada.
+
+    Solo se permite crearla si la vivienda está suspendida actualmente.
+    """
+    household = (
+        db.query(Household)
+        .filter(Household.id == current_user.household_id)
+        .first()
+    )
+
+    if not household:
+        raise HTTPException(
+            status_code=404,
+            detail="Vivienda no encontrada.",
+        )
+
+    now = utcnow()
+
+    if not household.suspended_until or household.suspended_until <= now:
+        raise HTTPException(
+            status_code=400,
+            detail="La vivienda no está suspendida; no necesita desbloqueo.",
+        )
+
+    existing = (
+        db.query(UnlockProposal)
+        .filter(UnlockProposal.target_household_id == household.id)
+        .filter(UnlockProposal.status == "OPEN")
+        .first()
+    )
+
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una propuesta de desbloqueo abierta para esta vivienda.",
+        )
+
+    proposal = UnlockProposal(
+        target_household_id=household.id,
+        created_by_user_id=current_user.id,
+        reason=payload.reason,
+        status="OPEN",
+        created_at=now,
+        closes_at=now + timedelta(hours=settings.UNLOCK_VOTING_HOURS),
+    )
+
+    db.add(proposal)
+    db.commit()
+    db.refresh(proposal)
+
+    log_event(
+        db,
+        event="UNLOCK_VOTE_CREATED",
+        household_id=household.id,
+        user_id=current_user.id,
+        metadata={
+            "proposal_id": proposal.id,
+            "reason": proposal.reason,
+            "closes_at": proposal.closes_at.isoformat(),
+        },
+    )
+    db.commit()
+
+    return {
+        "id": proposal.id,
+        "target_household_id": proposal.target_household_id,
+        "target_household_code": household.code if household else None,
+        "created_by_user_id": proposal.created_by_user_id,
+        "reason": proposal.reason,
+        "status": proposal.status,
+        "created_at": proposal.created_at,
+        "closes_at": proposal.closes_at,
+        "resolved_at": proposal.resolved_at,
+    }
 
 # Router para votar
 @router.post("/proposal/{proposal_id}/vote", response_model=UnlockVoteOut, status_code=status.HTTP_201_CREATED)

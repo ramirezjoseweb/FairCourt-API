@@ -21,6 +21,7 @@ export type CastUnlockVotePayload = {
 export type UnlockProposal = {
     id: number;
     target_household_id: number;
+    target_household_code: string;
     created_by_user_id: number;
     reason: string;
     status: string;

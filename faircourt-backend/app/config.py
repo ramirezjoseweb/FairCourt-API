@@ -25,7 +25,7 @@ class Settings(BaseModel):
     CLOSING_HOUR: int = 22 # 10 de la noche
 
     # Reglas de check-in
-    CHECKIN_WINDOW_MINUTES: int = 1 # 15 minutos despues de la reserva se puede hacer check-in
+    CHECKIN_WINDOW_MINUTES: int = 15 # 15 minutos despues de la reserva se puede hacer check-in
     CHECKIN_BASE_URL: str = "http://127.0.0.1:8000" # URL base para generar el código QR
 
     # Reglas de sanciones
@@ -37,7 +37,7 @@ class Settings(BaseModel):
 
     # Reglas Cooldown
     PRIME_TIME_START_HOUR: int = 18 # 18 de la tarde
-    PRIME_TIME_END_HOUR: int = 22 # 22 de la noche
+    PRIME_TIME_END_HOUR: int = 21 # 21 de la noche
     COOLDOWN_DAYS: int = 3 # 3 dias de cooldown
 
     # Reglas de desbloqueo

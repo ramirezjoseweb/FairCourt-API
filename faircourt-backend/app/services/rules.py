@@ -1,4 +1,5 @@
 from __future__ import annotations
+from email import message
 from app.security import utcnow
 from app.models import Household
 from app.models import WaitlistEntry, Reservation, ReservationStatus
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models import Reservation, ReservationStatus
 from app.services.audit import log_event
-from app.services.notifications import notify_household
+from app.services.notifications import notify_household, create_notification
 
 def is_within_booking_window(start_at, now) -> bool: 
     """

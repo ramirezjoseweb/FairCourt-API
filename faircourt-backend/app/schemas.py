@@ -130,6 +130,7 @@ class UnlockProposalOut(BaseModel):
     created_at: datetime
     closes_at: datetime
     resolved_at: datetime | None = None
+    target_household_code: str | None = None
 
     class Config: 
         from_attributes = True 
