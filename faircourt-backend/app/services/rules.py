@@ -368,6 +368,19 @@ def can_checkin_reservation(reservation, now) -> tuple[bool, str | None]:
     return True, None # La reserva puede hacer check-in
     # el usuario dispone de 15 minutos para hacer check-in desde el inicio de la reserva
 
+def get_effective_checkin_start(reservation: Reservation):
+    """
+    Devuelve el momento desde el que debe empezar a contar la ventana de check-in.
+
+    En reservas normales, se usa start_at.
+    En reservas promocionadas desde waitlist, created_at puede ser posterior a start_at,
+    por lo que se usa created_at para conceder una ventana real de check-in.
+    """
+    if reservation.created_at and reservation.created_at > reservation.start_at:
+        return reservation.created_at
+
+    return reservation.start_at
+
 def is_reservation_no_show(reservation, now) -> bool:
     """ Determina si una reserva debe considerarse no-show. 
     Reglas: 
@@ -381,7 +394,9 @@ def is_reservation_no_show(reservation, now) -> bool:
     if reservation.checkin_at is not None: 
         return False
 
-    deadline = reservation.start_at + timedelta(minutes=settings.CHECKIN_WINDOW_MINUTES)
+    effective_start = get_effective_checkin_start(reservation)
+    deadline = effective_start + timedelta(minutes=settings.CHECKIN_WINDOW_MINUTES)  
+
     return now > deadline # Si la hora actual es mayor a la fecha limite para hacer check-in, la reserva es no-show
 
 def apply_no_show_penalty(db: Session, reservation: Reservation, now):
