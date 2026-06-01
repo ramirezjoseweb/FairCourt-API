@@ -12,7 +12,7 @@ from app.services.rules import (
 )
 from app.services.unlock import resolve_unlock_proposals_if_needed
 
-def process_no_shows_job() -> None: 
+def process_no_shows_job() -> None:
     """
     Job programado que procesa automáticamente las reservas en no-show.
 
@@ -23,52 +23,58 @@ def process_no_shows_job() -> None:
     - aplica strike/suspensión
     - intenta promocionar waitlist
     """
-    db: Session = SessionLocal() 
+    db: Session = SessionLocal()
 
-    try: 
-        now = utcnow() 
+    try:
+        now = utcnow()
 
         candidate_reservations = (
             db.query(Reservation)
-            .filter(Reservation.status == ReservationStatus.ACTIVE.value) 
-            .all() 
+            .filter(Reservation.status == ReservationStatus.ACTIVE.value)
+            .all()
         )
 
-        processed = 0 
-        no_show_count = 0 
-        promoted_count = 0 
+        processed = 0
+        no_show_count = 0
+        promoted_count = 0
 
-        # para cada reserva activa 
-        for reservation in candidate_reservations: 
-            processed += 1 
+        for reservation in candidate_reservations:
+            processed += 1
 
-            # si no es no-show, pasamos a la siguiente 
-            if not is_reservation_no_show(reservation, now): 
-                continue
+            try:
+                if not is_reservation_no_show(reservation, now):
+                    continue
 
-            # aplicamos la penalización de no-show 
-            apply_no_show_penalty(db, reservation, now) 
-            no_show_count += 1 
+                apply_no_show_penalty(db, reservation, now)
+                no_show_count += 1
 
-            # intentamos promocionar la lista de espera 
-            promoted = try_promote_waitlist_for_slot(db, reservation.start_at)
-            if promoted: 
-                promoted_count += 1 
+                promoted = try_promote_waitlist_for_slot(db, reservation.start_at)
 
-        # si hay no-shows, mostramos un resumen 
-        if no_show_count > 0: 
-            print(f"[JOB process_no_shows] Revisadas={processed} "
-            f"NoShow={no_show_count} Promocionadas={promoted_count}"
+                if promoted:
+                    promoted_count += 1
+
+            except Exception as exc:
+                db.rollback()
+                print(
+                    "[JOB process_no_shows] Error procesando reserva "
+                    f"id={reservation.id}, start_at={reservation.start_at}, "
+                    f"end_at={reservation.end_at}: {exc}"
+                )
+
+        if no_show_count > 0:
+            print(
+                f"[JOB process_no_shows] Revisadas={processed} "
+                f"NoShow={no_show_count} Promocionadas={promoted_count}"
             )
+        else:
+            print("[JOB process_no_shows] No se encontraron reservas en no-show")
 
-        if no_show_count <= 0: 
-            print(f"[JOB process_no_shows] No se encontraron reservas en no-show")
-            
-    # si hay error, lo mostramos 
-    except Exception as e: 
-        print(f"[JOB process_no_shows] Error: {e}")
+    except Exception as exc:
+        db.rollback()
+        print(f"[JOB process_no_shows] Error general: {exc}")
+
     finally:
-        db.close() 
+        db.close()
 
 def process_expired_unlock_proposals_job() -> None: 
     """

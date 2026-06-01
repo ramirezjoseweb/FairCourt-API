@@ -384,29 +384,33 @@ def is_reservation_no_show(reservation, now) -> bool:
     deadline = reservation.start_at + timedelta(minutes=settings.CHECKIN_WINDOW_MINUTES)
     return now > deadline # Si la hora actual es mayor a la fecha limite para hacer check-in, la reserva es no-show
 
-def apply_no_show_penalty(db: Session, reservation: Reservation, now): 
+def apply_no_show_penalty(db: Session, reservation: Reservation, now):
     """
-    Marca una reserva como NO_SHOW, suma strike a la vivienda y aplica suspensión temporal
-    si alcanza el limite de strikes
+    Marca una reserva como NO_SHOW, suma un strike a la vivienda y aplica
+    suspensión temporal si alcanza el límite de strikes configurado.
     """
-    # Si no existe la vivienda, no se puede aplicar la penalización
-    household = db.query(Household).filter(Household.id == reservation.household_id).first() 
-    if not household: 
+    household = (
+        db.query(Household)
+        .filter(Household.id == reservation.household_id)
+        .first()
+    )
+
+    if not household:
         return None
-    
-    # Se marca la reserva como NO_SHOW
+
+    suspension_applied = False
+
+    # Marcamos la reserva como NO_SHOW y añadimos strike.
     reservation.status = ReservationStatus.NO_SHOW.value
-    household.strikes += 1 
+    household.strikes += 1
 
-    # Si la vivienda alcanza el limite de strikes, se aplica la suspensión temporal
-    if household.strikes >= settings.MAX_STRIKES: 
-        #household.is_active = False
+    # Aplicamos suspensión solo si alcanza el límite.
+    if household.strikes >= settings.MAX_STRIKES:
         household.suspended_until = now + timedelta(days=settings.SUSPENSION_DAYS)
-        #suspended_applied = True
+        suspension_applied = True
 
-    # Se guarda la reserva y la vivienda en la base de datos
-    db.commit() 
-    db.refresh(reservation) 
+    db.commit()
+    db.refresh(reservation)
     db.refresh(household)
 
     log_event(
@@ -416,7 +420,9 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
         reservation_id=reservation.id,
         metadata={
             "start_at": reservation.start_at.isoformat(),
-            "checkin_at": reservation.checkin_at.isoformat() if reservation.checkin_at else None,
+            "checkin_at": reservation.checkin_at.isoformat()
+            if reservation.checkin_at
+            else None,
         },
     )
 
@@ -430,35 +436,45 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
             "start_at": reservation.start_at.isoformat(),
         },
     )
-    
-    if household.is_active == False:
+
+    if suspension_applied:
         log_event(
             db,
             event="HOUSEHOLD_SUSPENDED",
             household_id=household.id,
             reservation_id=reservation.id,
             metadata={
-                "suspended_until": household.suspended_until.isoformat() if household.suspended_until else None,
+                "suspended_until": household.suspended_until.isoformat()
+                if household.suspended_until
+                else None,
                 "strikes": household.strikes,
             },
         )
-    db.commit() 
 
-    # Lanzamos notificación
-    notify_household(
-        db,
-        household_id=household.id,
-        type="NO_SHOW",
-        message=f"No se ha realizado check-in en la reserva de {reservation.start_at.strftime('%d/%m/%Y %H:%M')}. Se ha añadido un strike.",
-    )
     db.commit()
 
     notify_household(
         db,
         household_id=household.id,
-        type="HOUSEHOLD_SUSPENDED",
-        message=f"La vivienda ha sido suspendida hasta {household.suspended_until.strftime('%d/%m/%Y %H:%M')}.",
+        type="NO_SHOW",
+        message=(
+            f"No se ha realizado check-in en la reserva de "
+            f"{reservation.start_at.strftime('%d/%m/%Y %H:%M')}. "
+            "Se ha añadido un strike."
+        ),
     )
+
+    if suspension_applied and household.suspended_until:
+        notify_household(
+            db,
+            household_id=household.id,
+            type="HOUSEHOLD_SUSPENDED",
+            message=(
+                f"La vivienda ha sido suspendida hasta "
+                f"{household.suspended_until.strftime('%d/%m/%Y %H:%M')}."
+            ),
+        )
+
     db.commit()
 
     return household

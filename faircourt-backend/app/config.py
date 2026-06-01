@@ -25,7 +25,7 @@ class Settings(BaseModel):
     CLOSING_HOUR: int = 22 # 10 de la noche
 
     # Reglas de check-in
-    CHECKIN_WINDOW_MINUTES: int = 15 # 15 minutos despues de la reserva se puede hacer check-in
+    CHECKIN_WINDOW_MINUTES: int = 1 # 15 minutos despues de la reserva se puede hacer check-in
     CHECKIN_BASE_URL: str = "http://127.0.0.1:8000" # URL base para generar el código QR
 
     # Reglas de sanciones
