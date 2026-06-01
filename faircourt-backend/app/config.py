@@ -29,7 +29,7 @@ class Settings(BaseModel):
     CHECKIN_BASE_URL: str = "http://127.0.0.1:8000" # URL base para generar el código QR
 
     # Reglas de sanciones
-    MAX_STRIKES: int = 2 # 3 Maximo de faltas antes de la suspension
+    MAX_STRIKES: int = 2 # 2 Maximo de faltas antes de la suspension
     SUSPENSION_DAYS: int = 14 # Tiempo de suspension en dias
 
     # Reglas de waitlist
