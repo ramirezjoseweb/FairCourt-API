@@ -415,12 +415,22 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
 
     suspension_applied = False
 
+    was_promoted_from_waitlist = (
+    db.query(WaitlistEntry)
+    .filter(WaitlistEntry.household_id == reservation.household_id)
+    .filter(WaitlistEntry.start_at == reservation.start_at)
+    .filter(WaitlistEntry.status == "PROMOTED")
+    .first()
+    is not None
+)
+
     # Marcamos la reserva como NO_SHOW y añadimos strike.
     reservation.status = ReservationStatus.NO_SHOW.value
-    household.strikes += 1
+    if not was_promoted_from_waitlist:
+        household.strikes += 1
 
     # Aplicamos suspensión solo si alcanza el límite.
-    if household.strikes >= settings.MAX_STRIKES:
+    if not was_promoted_from_waitlist and household.strikes >= settings.MAX_STRIKES:
         household.suspended_until = now + timedelta(days=settings.SUSPENSION_DAYS)
         suspension_applied = True
 
@@ -441,16 +451,28 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
         },
     )
 
-    log_event(
-        db,
-        event="STRIKE_ADDED",
-        household_id=household.id,
-        reservation_id=reservation.id,
-        metadata={
-            "new_strikes": household.strikes,
-            "start_at": reservation.start_at.isoformat(),
-        },
-    )
+    if not was_promoted_from_waitlist:
+        log_event(
+            db,
+            event="STRIKE_ADDED",
+            household_id=household.id,
+            reservation_id=reservation.id,
+            metadata={
+                "new_strikes": household.strikes,
+                "start_at": reservation.start_at.isoformat(),
+            },
+        ),
+    else:
+        log_event(
+            db,
+            event="No-show en reserva promocionada desde waitlist (sin strike)",
+            household_id=household.id,
+            reservation_id=reservation.id,
+            metadata={
+                "start_at": reservation.start_at.isoformat(),
+                "reason": "PROMOTED_FROM_WAITLIST",
+            },
+        )
 
     if suspension_applied:
         log_event(
@@ -468,16 +490,28 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
 
     db.commit()
 
-    notify_household(
-        db,
-        household_id=household.id,
-        type="NO_SHOW",
-        message=(
-            f"No se ha realizado check-in en la reserva de "
-            f"{reservation.start_at.strftime('%d/%m/%Y %H:%M')}. "
-            "Se ha añadido un strike."
-        ),
-    )
+    if was_promoted_from_waitlist:
+        notify_household(
+            db,
+            household_id=household.id,
+            type="PROMOTED_NO_SHOW_WITHOUT_STRIKE",
+            message=(
+                f"No se ha realizado check-in en la reserva promocionada desde lista de espera "
+                f"para {reservation.start_at.strftime('%d/%m/%Y %H:%M')}. "
+                "No se ha añadido ningún strike."
+            ),
+        )
+    else:
+        notify_household(
+            db,
+            household_id=household.id,
+            type="NO_SHOW",
+            message=(
+                f"No se ha realizado check-in en la reserva de "
+                f"{reservation.start_at.strftime('%d/%m/%Y %H:%M')}. "
+                "Se ha añadido un strike."
+            ),
+        )
 
     if suspension_applied and household.suspended_until:
         notify_household(
