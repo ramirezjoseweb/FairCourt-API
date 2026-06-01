@@ -494,7 +494,7 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
         notify_household(
             db,
             household_id=household.id,
-            type="PROMOTED_NO_SHOW_WITHOUT_STRIKE",
+            type="NO_SHOW",
             message=(
                 f"No se ha realizado check-in en la reserva promocionada desde lista de espera "
                 f"para {reservation.start_at.strftime('%d/%m/%Y %H:%M')}. "
