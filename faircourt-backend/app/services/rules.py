@@ -74,6 +74,23 @@ def generate_daily_slots(target_date): # el target_date es la fecha que queremos
         
     return slots
 
+#def generate_daily_slots2(target_date):
+    """
+    Genera franjas reducidas para pruebas.
+    Ejemplo: 12:03-12:05, 12:05-12:07, 12:07-12:09...
+    """
+    slots = []
+
+    start_at = datetime.combine(target_date, time(hour=19, minute=40))
+    closing_time = datetime.combine(target_date, time(hour=19, minute=59))
+
+    while start_at < closing_time:
+        end_at = start_at + timedelta(minutes=2)
+        slots.append((start_at, end_at))
+        start_at = end_at
+
+    return slots
+
 def household_has_active_reservation_at(db:Session, household_id: int, start_at) -> bool: 
     """ Comprueba si una vivienda tiene una reserva activa en esa franja"""
     existing = (

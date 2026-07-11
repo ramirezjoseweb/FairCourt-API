@@ -1,0 +1,82 @@
+Aplicación web para gestionar de forma justa y automatizada
+las reservas de pistas deportivas comunitarias.
+
+## Demo
+
+- Aplicación: https://localhost:5173/
+- Documentación API: https://127.0.0.1:8000/docs
+- Vídeo demostrativo: https://...
+
+## Problema que resuelve
+
+En comunidades y clubes deportivos, la reserva de pistas suele
+generar conflictos, acaparamiento de horarios y trabajo administrativo sobre todo en horas punta. 
+FairCourt ofrece una solución a estos solapamientos y la carga administrativa de forma efectiva con pérdida mínima de eficacia
+en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de administradores. 
+
+## Funcionalidades
+
+- Registro mediante vivienda y código OTP
+- Autenticación JWT
+- Reserva y cancelación de franjas horarias
+- Lista de espera automática
+- Check-in mediante QR
+- Control de no-shows
+- Sistema de strikes y suspensiones
+- Límites semanales y reglas de equidad
+- Notificaciones
+- Consulta de disponibilidad
+- Scripts de simulaciones
+
+## Tecnologías
+
+### Backend
+- Python
+- FastAPI
+- SQLAlchemy
+- Alembic
+- JWT
+- OTP 
+
+### Frontend
+- React
+- Vite.js
+- TypeScript
+- Tailwind CSS
+
+### Base de datos
+- SQLite / PostgreSQL
+
+## Arquitectura
+
+![Arquitectura de FairCourt](docs/images/faircourt_architecture.png)
+
+## Ejecución local
+
+### Backend
+
+```bash
+python 3.11.9 o superior
+node.js 24.15.0 o superior
+npm 11.12.1 o superior
+
+1. mkdir /.../FairCourt_instalacion
+2. git clone https://github.com/ramirezjoseweb/FairCourt-API.git
+3. cd faircourt_backend
+4. python -m venv .venv \ py -m venv .venv (probar con py en caso de que el comando python de error). 
+5. .\.venv\Scripts\activate
+6. pip install -r requirements.txt
+7. alembic upgrade head
+8. python seed.py --file households.txt
+9. uvicorn app.main:app --reload
+10. cd faircourt-frontend
+11. npm install 
+12. npm run dev
+13. Ir a http://localhost:5173 
+
+## Datos de demostración
+Para probar el registro pueden utilizarse los códigos de vivienda definidos en ![Códigos de viviendas]!(faircourt-backend/households.txt) como por ejemplo: "A1". 
+Consultar OTP generado en terminal (modo desarrollo).
+
+## Documentación detallada sobre uso de la aplicación
+- [Manual de usuario](docs/user_manual.md)

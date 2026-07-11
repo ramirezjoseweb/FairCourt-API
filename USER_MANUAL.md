@@ -1,0 +1,104 @@
+## Inicio de sesión  
+Para iniciar sesión se deberá de asociar la primera vez el código de 
+vivienda con un correo electrónico, dicho correo tiene que ser siempre el mismo 
+posteriormente para que el sistema te permita iniciar sesión con el código de 
+vivienda asociado. 
+1. Introduce código de vivienda + correo electrónico. 
+2. Solicita el código OTP.  
+3. Introduce el código OTP generado por el sistema. 
+4. Acceder a la página de inicio FairCourt. 
+No se podrá acceder mediante código de vivienda solo si dicho código 
+no existe o el correo asociado es diferente al que se asoció la primera vez que 
+se inició sesión en esa vivienda.
+
+## Página de inicio 
+Una vez autenticados, FairCourt nos mostrará automáticamente la página 
+de inicio principal donde se muestra información resumida sobre la vivienda. 
+Dicha información es:  
+* Email de la vivienda 
+* Código de vivienda 
+* Número de strikes 
+* Estado de suspensión de la vivienda o si está activa y libre de suspensión. 
+* Número de waitlists activas 
+* Token JWT guardado
+También podemos encontrar una barra de navegación en la parte superior 
+de la página que nos permite navegar por la aplicación y nos dice en qué estado 
+estamos usando la aplicación, online/offline.
+
+## Consulta de disponibilidad de pista 
+En la página de disponibilidad, podemos consultar los horarios de la pista 
+y si está ocupada o no según que franjas horarias haya disponibles. El usuario 
+tendrá libertad para crear una reserva, apuntarse a una waitlist, mirar en el 
+calendario y elegir una fecha disponible para consultar las reservas de esa fecha. 
+Como información adicional, en cada franja horaria podemos ver si está libre de 
+reserva, ocupada o bloqueada si la vivienda no cumple las reglas, también nos 
+indica si hay cola en la lista de waitlists para cualquier slot.
+
+##  Mis reservas 
+Desde la vista de mis reservas, podemos ver las reservas activas y 
+pasadas de nuestra vivienda. También nos muestra el estado de dichas 
+reservas. Desde está parte de la aplicación se realizarán acciones críticas 
+cuando haya reservas activas, estas acciones son las de realizar el check-in de  
+una reserva y la de cancelar reservas activas, esto solo vale para las reservas 
+que no son pasadas ni están marcadas como no-show.
+
+## Sección de auditoría  
+En esta sección simplemente podemos ver contenido informativo para 
+dejar trazabilidad en las acciones del usuario y aportar transparencia y al mismo 
+tiempo resolver alguna incongruencia sin dependencia de un administrador. 
+Quedan registradas las acciones importantes y el usuario puede ver que 
+acciones o eventos son, cuando se han realizado y metadatos de dichos eventos 
+como el email, hora de comienzo, nuevos strikes, etc.
+
+## Página de desbloqueos 
+En este apartado de la aplicación, se realizan algunas acciones 
+importantes. En esta se incluyen el sistema de votaciones ligeras sobre 
+desbloqueos y la creación de propuestas de desbloqueo para tu propia vivienda. 
+Para realizar la segunda acción tu cuenta debe de estar suspendida y el sistema 
+te avisa de cuando puedes realizar esta propuesta. 
+Por otro lado, en la parte inferior de la página podemos ver todas las propuestas 
+de desbloqueo realizadas por tu vivienda y las demás, aquí es donde el sistema 
+de votación se implementa. En cada propuesta el usuario podrá votar si está de 
+acuerdo con la propuesta de desbloqueo, pudiendo ver información relevante 
+como el código de vivienda protestante, motivo de la propuesta, estado de la 
+misma (aprobada, expirada, rechazada) y si la propuesta es tuya o no.
+
+## Notificaciones
+En la página de notificaciones al igual que en la de auditoría es de carácter 
+informativo. Aunque incluye una función no tan crítica pero válida que es la de 
+marcar como leído las notificaciones con el objetivo de no acumularse. Podemos 
+ver las notificaciones importantes que afectan a tu vivienda como avisos de 
+suspensiones, reservas creadas, promociones obtenidas, avisos de no-show + 
+strikes, etc. En cada evento notificado podemos ver información adicional como 
+la fecha del suceso del evento y qué tipo de evento ha sido notificado. Una vez 
+vistas las notificaciones, se recomienda marcarlas como leídas para mantener 
+una buena organización en tu sección de notificaciones.
+
+## Uso sin conexión 
+FairCourt ofrece funcionamiento offline-first. Cuando el usuario pierda 
+conexión, la aplicación puede mostrar la última información sincronizada como 
+reservas, notificaciones, auditoría o disponibilidad.  
+Sin embargo, quedarán bloqueadas las acciones críticas para evitar 
+conflictos y solapamientos en las reservas.
+Cuando el sistema vuelva a estar online, se sincronizarán de nuevo los 
+datos.
+
+## Cierre de sesión 
+Por último, en la parte superior derecha de FairCourt, se podrá observar 
+un botón “Cerrar sesión”. Al hacerlo se elimina la sesión activa y será necesario 
+repetir el proceso de autenticación mediante OTP.  
+
+## Otros documentos, manuales
+Los manuales de instalación y usuario son imprescindibles para el 
+funcionamiento de la aplicación, pero el proyecto también cuenta con una serie 
+de recursos auxiliares que funcionan junto a la aplicación y que son necesarios. 
+Lo primero a tener en cuenta que se considera relevante, es la 
+documentación automática generada por FastAPI mediante el Swagger. Esta 
+documentación es accesible desde /docs una vez ejecutado el backend. Aparte
+de poder revisar la documentación, podemos probar los endpoints principales 
+del sistema. 
+Otros recursos auxiliares del backend son los archivos households.txt, en 
+el que se define las viviendas. Por otra parte, tenemos el seed.py que se encarga 
+de cargar las viviendas en la base de datos. Estos recursos facilitan en bastante 
+cantidad la preparación del entorno.
+
