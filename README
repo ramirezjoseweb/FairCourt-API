@@ -3,8 +3,8 @@ las reservas de pistas deportivas comunitarias.
 
 ## Demo
 
-- Aplicación: https://localhost:5173/
-- Documentación API: https://127.0.0.1:8000/docs
+- Aplicación: http://localhost:5173/
+- Documentación API: http://127.0.0.1:8000/docs
 - Vídeo demostrativo: https://...
 
 ## Problema que resuelve
@@ -36,7 +36,6 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 - SQLAlchemy
 - Alembic
 - JWT
-- OTP 
 
 ### Frontend
 - React
@@ -73,10 +72,11 @@ npm 11.12.1 o superior
 11. npm install 
 12. npm run dev
 13. Ir a http://localhost:5173 
+```
 
 ## Datos de demostración
-Para probar el registro pueden utilizarse los códigos de vivienda definidos en ![Códigos de viviendas]!(faircourt-backend/households.txt) como por ejemplo: "A1". 
+Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1". 
 Consultar OTP generado en terminal (modo desarrollo).
 
 ## Documentación detallada sobre uso de la aplicación
-- [Manual de usuario](docs/user_manual.md)
+- [Manual de usuario](USER_MANUAL.md)

@@ -1,3 +1,12 @@
+# Manual de usuario de FairCourt
+
+## Introducción
+FairCourt es una aplicación destinada a gestionar las reservas de una pista deportiva comunitaria mediante reglas de equidad, listas de espera, control de asistencia y mecanismos de transparencia.
+Este manual explica el funcionamiento de la aplicación desde el punto de vista del usuario.
+
+## Entorno de demostración
+La versión pública utiliza datos ficticios. Las reservas, notificaciones y códigos de vivienda pueden reiniciarse periódicamente.
+
 ## Inicio de sesión  
 Para iniciar sesión se deberá de asociar la primera vez el código de 
 vivienda con un correo electrónico, dicho correo tiene que ser siempre el mismo 
@@ -7,9 +16,7 @@ vivienda asociado.
 2. Solicita el código OTP.  
 3. Introduce el código OTP generado por el sistema. 
 4. Acceder a la página de inicio FairCourt. 
-No se podrá acceder mediante código de vivienda solo si dicho código 
-no existe o el correo asociado es diferente al que se asoció la primera vez que 
-se inició sesión en esa vivienda.
+No se podrá acceder si el código de vivienda no existe o si el correo introducido es diferente al asociado previamente a la vivienda.
 
 ## Página de inicio 
 Una vez autenticados, FairCourt nos mostrará automáticamente la página 
@@ -20,7 +27,6 @@ Dicha información es:
 * Número de strikes 
 * Estado de suspensión de la vivienda o si está activa y libre de suspensión. 
 * Número de waitlists activas 
-* Token JWT guardado
 También podemos encontrar una barra de navegación en la parte superior 
 de la página que nos permite navegar por la aplicación y nos dice en qué estado 
 estamos usando la aplicación, online/offline.
@@ -60,7 +66,7 @@ Por otro lado, en la parte inferior de la página podemos ver todas las propuest
 de desbloqueo realizadas por tu vivienda y las demás, aquí es donde el sistema 
 de votación se implementa. En cada propuesta el usuario podrá votar si está de 
 acuerdo con la propuesta de desbloqueo, pudiendo ver información relevante 
-como el código de vivienda protestante, motivo de la propuesta, estado de la 
+como el código de vivienda proponente, motivo de la propuesta, estado de la 
 misma (aprobada, expirada, rechazada) y si la propuesta es tuya o no.
 
 ## Notificaciones
