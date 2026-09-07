@@ -1,186 +1,193 @@
 import { useState } from "react";
 import { requestOtp, verifyOtp } from "./api/auth";
-import { Dashboard } from "./components/Dashboard"; // Importamos el componente Dashboard. 
-//import { OfflineBanner } from "./components/OfflineBanner";
+import { Dashboard } from "./components/Dashboard";
+import {
+  Brand,
+  Button,
+  CourtArt,
+  Feedback,
+  Icon,
+  Notice,
+} from "./components/ui";
+import { useAction } from "./hooks/useAction";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
-// Componente principal de la aplicación.
-function App() {
-  // Estados para manejar el flujo de la aplicación.
-  const isOnline = useOnlineStatus();
+export default function App() {
+  const [token, setToken] = useState(() =>
+    localStorage.getItem("faircourt_token"),
+  );
   const [houseCode, setHouseCode] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  // Estado que controla el paso actual del flujo de autenticación.
-  const [step, setStep] = useState<"request" | "verify" | "done">("request");
-  // Estado que almacena el token JWT.
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("faircourt_token")
-  );
-  // Estados para manejar el estado de carga, mensajes y errores.
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Función para solicitar un código OTP.
-  async function handleRequestOtp(event: React.FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
-    // Realiza la petición a la API para solicitar el código OTP.
-    try { // Si la petición es exitosa, muestra el mensaje y cambia al paso de verificación.
-      const response = await requestOtp({
-        house_code: houseCode.trim(),
-        email: email.trim(),
-      });
-
-      setMessage(response.message);
-      setStep("verify");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error solicitando OTP");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Función para verificar el código OTP y obtener el token.
-  async function handleVerifyOtp(event: React.FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    setMessage(null);
-
-    // Realiza la petición a la API para verificar el código OTP.
-    try {
-      // Si la petición es exitosa, guarda el token, muestra el mensaje y cambia al paso final.
-      const response = await verifyOtp({
-        email: email.trim(),
-        otp: otp.trim(),
-      });
-      // Guarda el token JWT en el localStorage.
-      localStorage.setItem("faircourt_token", response.access_token);
-      setToken(response.access_token);
-      setMessage("Sesión iniciada correctamente.");
-      setStep("done");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error verificando OTP");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Función para cerrar sesión.
-  function handleLogout() {
+  const [step, setStep] = useState<"request" | "verify">("request");
+  const isOnline = useOnlineStatus();
+  const action = useAction();
+  const [deliveryMessage, setDeliveryMessage] = useState("");
+  function logout() {
     localStorage.removeItem("faircourt_token");
     setToken(null);
     setStep("request");
     setOtp("");
-    setMessage(null);
-    setError(null);
+    setDeliveryMessage("");
   }
-
-  // Renderizado condicional basado en el estado del flujo.
-  // Si hay token y estamos en el paso final, muestra el contenido de la sesión iniciada.
-  if (token) {
-    return <Dashboard token={token} onLogout={handleLogout} />; // Si existe token, muestra el dashboard.
+  if (token) return <Dashboard onLogout={logout} />;
+  async function submit(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await action.run(async () => {
+      if (step === "request") {
+        const response = await requestOtp({
+          house_code: houseCode.trim(),
+          email: email.trim(),
+        });
+        setDeliveryMessage(response.message);
+        setStep("verify");
+      } else {
+        const response = await verifyOtp({
+          email: email.trim(),
+          otp: otp.trim(),
+        });
+        localStorage.setItem("faircourt_token", response.access_token);
+        setToken(response.access_token);
+      }
+    });
   }
-  // Si no hay token o no estamos en el paso final, muestra el formulario de inicio de sesión.
   return (
-    <main className="min-h-screen bg-slate-100 p-6">
-      <section className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow">
-        <h1 className="text-3xl font-bold text-slate-900">FairCourt</h1>
-        <p className="mt-2 text-slate-600">
-          Acceso mediante vivienda y código OTP.
-        </p>
-        {/* Formulario para solicitar el código OTP. */}
-        {step === "request" && (
-          <form onSubmit={handleRequestOtp} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Código de vivienda
-              </label>
-              <input
-                value={houseCode}
-                onChange={(e) => setHouseCode(e.target.value)}
-                placeholder="A1"
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
-              />
-            </div>
-            {/* Campo de entrada para el email. */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Email
-              </label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="a1@example.com"
-                type="email"
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
-              />
-            </div>
-            {/* Botón para solicitar el código OTP. */}
-            <button
-              disabled={loading || !isOnline}
-              className="w-full rounded-xl bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-            >
-              {!isOnline ? "Sin conexión" : loading ? "Enviando..." : "Solicitar OTP"}            </button>
-          </form>
-        )}
-        {/* Formulario para verificar el código OTP. */}
-        {step === "verify" && (
-          <form onSubmit={handleVerifyOtp} className="mt-6 space-y-4">
-            {/* Mensaje informativo sobre el código OTP. */}
-            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-              Se ha generado un OTP para <strong>{email}</strong>.
-              En modo desarrollo, míralo en la terminal de Uvicorn.
-            </div>
-            {/* Campo de entrada para el código OTP. */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700">
-                Código OTP
-              </label>
-              <input
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="123456"
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
-              />
-            </div>
-            {/* Botón para verificar el código OTP. */}
-            <button
-              disabled={loading || !isOnline}
-              className="w-full rounded-xl bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-            >
-              {!isOnline ? "Sin conexión" : loading ? "Verificando..." : "Verificar OTP"}
-            </button>
-            {/* Botón para volver al paso anterior. */}
-            <button
-              type="button"
-              onClick={() => setStep("request")}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Volver
-            </button>
-          </form>
-        )}
-        {/* Mensaje de éxito si existe */}
-        {message && (
-          <p className="mt-4 rounded-xl bg-green-50 p-3 text-sm text-green-700">
-            {message}
+    <main className="auth">
+      <section className="auth-story">
+        <Brand />
+        <div className="auth-story-copy">
+          <p className="eyebrow">TU COMUNIDAD. TU PISTA.</p>
+          <h1>
+            Más juego.
+            <br />
+            Mejor comunidad.
+          </h1>
+          <p>
+            Un espacio compartido.
+            <br />
+            Las mismas oportunidades para todos.
           </p>
-        )}
-
-        {error && (
-          <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-            {error}
+        </div>
+        <CourtArt />
+        <div className="auth-story-footer">
+          <Icon name="shield" />
+          <span>Reservas justas. De principio a fin.</span>
+          <span>01 / 01</span>
+        </div>
+      </section>
+      <section className="auth-access">
+        <div className="auth-mobile-brand">
+          <Brand />
+        </div>
+        <div className="auth-form-wrap">
+          <div className="auth-step">
+            <span className="step-active">
+              01 <span>Tu vivienda</span>
+            </span>
+            <i />
+            <span className={step === "verify" ? "step-active" : ""}>
+              02 <span>Verificación</span>
+            </span>
+          </div>
+          <p className="eyebrow">BIENVENIDO A FAIRCourt</p>
+          <h2>
+            {step === "request"
+              ? "Tu próxima partida empieza aquí."
+              : "Ya casi estás dentro."}
+          </h2>
+          <p className="muted">
+            {step === "request"
+              ? "Accede con tu vivienda y disfruta de la pista de tu comunidad."
+              : `Introduce el código de acceso generado para ${email}.`}
           </p>
-        )}
+          {!isOnline && (
+            <Notice kind="info">Necesitas conexión para iniciar sesión.</Notice>
+          )}
+          <form onSubmit={submit} className="auth-form">
+            {step === "request" ? (
+              <>
+                <label htmlFor="house-code">Código de vivienda</label>
+                <input
+                  id="house-code"
+                  value={houseCode}
+                  onChange={(e) => setHouseCode(e.target.value)}
+                  placeholder="Por ejemplo, A1"
+                  autoComplete="username"
+                  required
+                  autoFocus
+                />
+                <label htmlFor="email">Correo electrónico</label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@correo.es"
+                  autoComplete="email"
+                  required
+                />
+                <p className="field-hint">
+                  Utiliza el correo asociado a tu vivienda.
+                </p>
+              </>
+            ) : (
+              <>
+                <Notice kind="info">{deliveryMessage}</Notice>
+                <label htmlFor="otp">Código de acceso</label>
+                <input
+                  id="otp"
+                  className="otp-input"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="Introduce tu código"
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  required
+                  autoFocus
+                />
+                {import.meta.env.DEV && (
+                  <p className="field-hint">
+                    Entorno de desarrollo: consulta el OTP en la terminal de
+                    Uvicorn.
+                  </p>
+                )}
+              </>
+            )}
+            <Feedback error={action.error} />
+            <Button
+              type="submit"
+              disabled={action.busy || !isOnline}
+              className="full-width"
+            >
+              {action.busy
+                ? "Un momento…"
+                : step === "request"
+                  ? "Solicitar código de acceso"
+                  : "Entrar en FairCourt"}
+              <Icon name="arrow" />
+            </Button>
+            {step === "verify" && (
+              <Button
+                variant="ghost"
+                disabled={action.busy}
+                onClick={() => {
+                  setStep("request");
+                  setOtp("");
+                }}
+              >
+                Volver a mis datos
+              </Button>
+            )}
+          </form>
+          <div className="auth-security">
+            <Icon name="shield" />
+            <span>Acceso seguro, sin contraseñas.</span>
+          </div>
+        </div>
+        <footer className="auth-footer">
+          FairCourt <span>El juego limpio empieza antes de jugar.</span>
+        </footer>
       </section>
     </main>
   );
 }
-
-export default App;

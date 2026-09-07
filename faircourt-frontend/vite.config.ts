@@ -25,8 +25,8 @@ export default defineConfig({
         name: "FairCourt",
         short_name: "FairCourt",
         description: "Sistema justo de reservas comunitarias",
-        theme_color: "#0f172a",
-        background_color: "#f1f5f9",
+        theme_color: "#173f35",
+        background_color: "#f6f7f2",
         display: "standalone",
         start_url: "/",
         scope: "/",
@@ -50,7 +50,7 @@ export default defineConfig({
       },
 
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     }),
   ],

@@ -1,3 +1,5 @@
+import { reportReachability } from "../utils/networkStatus";
+
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 //Función auxiliar para obtener el token de localStorage.
@@ -13,7 +15,9 @@ export async function apiRequest<T>(
     const token = getToken();
 
     // 1. Construye la URL completa de la petición
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    let response: Response;
+    try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
         // 2. Propaga las opciones originales (method, body, etc.)
         ...options,
         // 3. Asegura el Content-Type
@@ -23,6 +27,11 @@ export async function apiRequest<T>(
             ...(options.headers || {}), // Combina las cabeceras originales con las nuestras. (Operador ternario)
         },
     });
+    } catch (error) {
+        reportReachability(false);
+        throw error;
+    }
+    reportReachability(true);
     // 4. Decodifica la respuesta.
     const data = await response.json().catch(() => null);
     // 5. Si la respuesta no es OK, lanza un error.

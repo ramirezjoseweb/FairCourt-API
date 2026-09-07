@@ -1,176 +1,81 @@
-import { useCallback, useEffect, useState } from "react";
-import { getMe, type MeResponse } from "../api/me";
-import { AppLayout, type AppView } from "./AppLayout";
-import { DashboardHome } from "./DashboardHome";
-import { MyReservationsPanel } from "./MyReservationsPanel";
-import { NotificationsPanel } from "./NotificationsPanel";
-import { SlotsPanel } from "./SlotsPanel";
-import { AuditPanel } from "./AuditPanel";
-import { UnlockPanel } from "./UnlockPanel";
+import { useCallback, useState } from "react";
+import { getMe } from "../api/me";
+import { getMyNotifications } from "../api/notifications";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useReconnectSync } from "../hooks/useReconnectSync";
-
-type DashboardProps = {
-    token: string;
-    onLogout: () => void;
-};
-
-/**
- * Componente principal del área autenticada.
- *
- * Se encarga de:
- * - cargar los datos de la vivienda autenticada,
- * - controlar la vista activa,
- * - renderizar cada sección dentro del layout común.
- */
-export function Dashboard({ token, onLogout }: DashboardProps) {
-    const [me, setMe] = useState<MeResponse | null>(null);
-    const [activeView, setActiveView] = useState<AppView>("home");
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [refreshKey, setRefreshKey] = useState(0);
-    const isOnline = useOnlineStatus();
-    const [syncMessage, setSyncMessage] = useState<string | null>(null);
-
-    /**
-     * Carga la información del usuario/vivienda autenticada desde el backend.
-     */
-    const loadMe = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            const data = await getMe();
-            setMe(data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Error cargando usuario.");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    /**
-     * Fuerza la recarga de datos dependientes entre paneles.
-     *
-     * Se usa cuando una acción modifica el estado del sistema o cuando
-     * la aplicación recupera conexión tras haber estado offline.
-     */
-    const handleDataChanged = useCallback(() => {
-        setRefreshKey((current) => current + 1);
-        loadMe();
-
-        setSyncMessage("Conexión recuperada. Datos sincronizados.");
-        window.setTimeout(() => setSyncMessage(null), 3000);
-    }, [loadMe]);
-
-    useEffect(() => {
-        loadMe();
-    }, [loadMe]);
-
-    /**
-  * Sincroniza datos principales cuando la aplicación recupera conexión.
-     *
-     * Al volver online:
-     * - recarga /me;
-     * - fuerza recarga de paneles dependientes mediante refreshKey.
-     */
-    useReconnectSync(isOnline, handleDataChanged);
-
-
-    /**
-     * Renderiza la vista activa seleccionada en la navegación.
-     */
-    function renderActiveView() {
-        if (!me) {
-            return null;
-        }
-
-        if (activeView === "home") {
-            return <DashboardHome me={me} />;
-        }
-
-        if (activeView === "slots") {
-            return <SlotsPanel onChanged={handleDataChanged} />;
-        }
-
-        if (activeView === "reservations") {
-            return (
-                <MyReservationsPanel
-                    refreshKey={refreshKey}
-                    onChanged={handleDataChanged}
-                />
-            );
-        }
-
-        if (activeView === "notifications") {
-            return <NotificationsPanel refreshKey={refreshKey} />;
-        }
-
-        if (activeView === "audit") {
-            return <AuditPanel refreshKey={refreshKey} />;
-        }
-
-        if (activeView === "unlock") {
-            return (
-                <UnlockPanel
-                    me={me}
-                    refreshKey={refreshKey}
-                    onRefreshMe={loadMe}
-                />
-            );
-        }
-
-        return null;
-    }
-
-    if (loading) {
-        return (
-            <main className="min-h-screen bg-slate-100 p-6">
-                <section className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow">
-                    <p className="text-slate-600">Cargando datos...</p>
-                </section>
-            </main>
-        );
-    }
-
-    if (error) {
-        return (
-            <main className="min-h-screen bg-slate-100 p-6">
-                <section className="mx-auto max-w-3xl rounded-2xl bg-red-50 p-8 text-red-700 shadow">
-                    {error}
-                    <button
-                        onClick={onLogout}
-                        className="mt-4 block rounded-xl bg-slate-900 px-4 py-2 text-white"
-                    >
-                        Cerrar sesión
-                    </button>
-                </section>
-            </main>
-        );
-    }
-
-    return (
-        <AppLayout
-            activeView={activeView}
-            onChangeView={setActiveView}
-            onLogout={onLogout}
-        >
-            {syncMessage && (
-                <div className="mb-4 rounded-xl bg-green-50 p-3 text-sm text-green-700">
-                    {syncMessage}
-                </div>
-            )}
-
-            {renderActiveView()}
-
-            {activeView === "home" && (
-                <section className="mt-6 rounded-2xl bg-white p-6 shadow">
-                    <p className="text-sm font-medium text-slate-500">
-                        Token JWT guardado
-                    </p>
-                    <p className="mt-2 break-all text-xs text-slate-500">{token}</p>
-                </section>
-            )}
-        </AppLayout>
-    );
+import { useResource } from "../hooks/useResource";
+import { AppLayout } from "./AppLayout";
+import type { AppView } from "./AppLayout";
+import { DashboardHome } from "./DashboardHome";
+import { SlotsPanel } from "./SlotsPanel";
+import { MyReservationsPanel } from "./MyReservationsPanel";
+import { NotificationsPanel } from "./NotificationsPanel";
+import { AuditPanel } from "./AuditPanel";
+import { UnlockPanel } from "./UnlockPanel";
+import { Loading, Notice, ResourceError } from "./ui";
+import { localDay } from "../utils/format";
+export function Dashboard({ onLogout }: { onLogout: () => void }) {
+  const [activeView, setActiveView] = useState<AppView>("home");
+  const [day, setDay] = useState(localDay);
+  const [refresh, setRefresh] = useState(0);
+  const [reconnected, setReconnected] = useState(false);
+  const online = useOnlineStatus();
+  const me = useResource(getMe, "me", refresh);
+  const notifications = useResource(
+    getMyNotifications,
+    "notifications",
+    refresh,
+  );
+  const changed = useCallback(() => setRefresh((value) => value + 1), []);
+  const reconnect = useCallback(() => {
+    changed();
+    setReconnected(true);
+  }, [changed]);
+  useReconnectSync(online, reconnect);
+  const unread =
+    notifications.data?.filter((item) => !item.is_read).length ?? 0;
+  return (
+    <AppLayout
+      activeView={activeView}
+      onChangeView={setActiveView}
+      onLogout={onLogout}
+      me={me.data}
+      unreadCount={unread}
+    >
+      {reconnected && online && !me.loading && !me.error && (
+        <Notice>Conexión recuperada. Información actualizada.</Notice>
+      )}
+      <ResourceError error={me.error} retry={me.reload} />
+      {!me.data && me.loading && <Loading />}
+      {me.data && (
+        <>
+          {activeView === "home" && (
+            <DashboardHome me={me.data} onNavigate={setActiveView} />
+          )}
+          {activeView === "slots" && (
+            <SlotsPanel
+              day={day}
+              onDayChange={setDay}
+              refreshKey={refresh}
+              onChanged={changed}
+            />
+          )}
+          {activeView === "reservations" && (
+            <MyReservationsPanel refreshKey={refresh} onChanged={changed} />
+          )}
+          {activeView === "notifications" && (
+            <NotificationsPanel resource={notifications} onChanged={changed} />
+          )}
+          {activeView === "audit" && <AuditPanel refreshKey={refresh} />}
+          {activeView === "unlock" && (
+            <UnlockPanel
+              me={me.data}
+              refreshKey={refresh}
+              onChanged={changed}
+            />
+          )}
+        </>
+      )}
+    </AppLayout>
+  );
 }

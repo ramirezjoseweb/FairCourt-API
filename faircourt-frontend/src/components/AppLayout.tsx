@@ -1,128 +1,157 @@
-import { useEffect, useState } from "react";
-import { getMyNotifications } from "../api/notifications";
-import { OfflineBanner } from "./OfflineBanner";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import type { MeResponse } from "../api/me";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-
+import { Brand, Button, Dialog, Icon } from "./ui";
+import type { IconName } from "./ui";
+import { OfflineBanner } from "./OfflineBanner";
 export type AppView =
-    | "home"
-    | "slots"
-    | "reservations"
-    | "notifications"
-    | "audit"
-    | "unlock";
-
-type AppLayoutProps = {
-    activeView: AppView;
-    onChangeView: (view: AppView) => void;
-    onLogout: () => void;
-    children: React.ReactNode;
-};
-
-/**
- * Layout principal de la aplicación autenticada.
- *
- * Centraliza:
- * - la barra superior de navegación,
- * - el acceso a las distintas secciones,
- * - el contador de notificaciones no leídas,
- * - la acción de cierre de sesión.
- */
+  "home" | "slots" | "reservations" | "notifications" | "audit" | "unlock";
+const navigation: { id: AppView; label: string; icon: IconName }[] = [
+  { id: "home", label: "Inicio", icon: "home" },
+  { id: "slots", label: "Disponibilidad", icon: "calendar" },
+  { id: "reservations", label: "Mis reservas", icon: "ticket" },
+  { id: "notifications", label: "Notificaciones", icon: "bell" },
+  { id: "audit", label: "Auditoría", icon: "history" },
+  { id: "unlock", label: "Desbloqueos", icon: "unlock" },
+];
 export function AppLayout({
-    activeView,
-    onChangeView,
-    onLogout,
-    children,
-}: AppLayoutProps) {
-    const isOnline = useOnlineStatus();
-    const [unreadCount, setUnreadCount] = useState(0);
-
-    /**
-     * Carga el número de notificaciones pendientes de lectura.
-     * Se usa en la barra superior para mostrar un contador visible.
-     */
-    async function loadUnreadNotifications() {
-        try {
-            const notifications = await getMyNotifications();
-            const count = notifications.filter((item) => !item.is_read).length;
-            setUnreadCount(count);
-        } catch {
-            setUnreadCount(0);
-        }
-    }
-
-    useEffect(() => {
-        loadUnreadNotifications();
-    }, [activeView]);
-
-    const navItems: { id: AppView; label: string }[] = [
-        { id: "home", label: "Inicio" },
-        { id: "slots", label: "Disponibilidad" },
-        { id: "reservations", label: "Mis reservas" },
-        { id: "audit", label: "Auditoría" },
-        { id: "unlock", label: "Desbloqueos" },
-    ];
-
+  activeView,
+  onChangeView,
+  onLogout,
+  children,
+  me,
+  unreadCount,
+}: {
+  activeView: AppView;
+  onChangeView: (view: AppView) => void;
+  onLogout: () => void;
+  children: ReactNode;
+  me?: MeResponse;
+  unreadCount: number;
+}) {
+  const online = useOnlineStatus();
+  const [more, setMore] = useState(false);
+  const current = navigation.find((item) => item.id === activeView)!;
+  function navigate(view: AppView) {
+    onChangeView(view);
+    setMore(false);
+    window.scrollTo({ top: 0 });
+  }
+  function navItem(item: (typeof navigation)[number]) {
     return (
-        <main className="min-h-screen bg-slate-100">
-            <OfflineBanner isOnline={isOnline} />
-            <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
-                <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">FairCourt</h1>
-                        <p className="text-sm text-slate-500">
-                            Sistema justo de reservas comunitarias
-                        </p>
-                    </div>
-
-                    <nav className="flex flex-wrap items-center gap-2">
-                        {navItems.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => onChangeView(item.id)}
-                                className={`rounded-xl px-4 py-2 text-sm font-medium transition ${activeView === item.id
-                                    ? "bg-slate-900 text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                    }`}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-
-                        <button
-                            onClick={() => onChangeView("notifications")}
-                            className={`relative rounded-xl px-4 py-2 text-sm font-medium transition ${activeView === "notifications"
-                                ? "bg-slate-900 text-white"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                }`}
-                        >
-                            Notificaciones
-                            {unreadCount > 0 && (
-                                <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">
-                                    {unreadCount}
-                                </span>
-                            )}
-                        </button>
-
-                        <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${isOnline
-                                ? "bg-green-50 text-green-700"
-                                : "bg-amber-50 text-amber-700"
-                                }`}
-                        >
-                            {isOnline ? "Online" : "Offline"}
-                        </span>
-
-                        <button
-                            onClick={onLogout}
-                            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                        >
-                            Cerrar sesión
-                        </button>
-                    </nav>
-                </div>
-            </header>
-
-            <section className="mx-auto max-w-7xl px-6 py-6">{children}</section>
-        </main>
+      <button
+        key={item.id}
+        className={`nav-item ${activeView === item.id ? "nav-active" : ""}`}
+        aria-current={activeView === item.id ? "page" : undefined}
+        onClick={() => navigate(item.id)}
+      >
+        <Icon name={item.icon} />
+        <span>{item.label}</span>
+        {item.id === "notifications" && unreadCount > 0 && (
+          <span className="count">{unreadCount}</span>
+        )}
+      </button>
     );
+  }
+  return (
+    <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Saltar al contenido
+      </a>
+      <aside className="sidebar">
+        <Brand />
+        <p className="sidebar-label">TU ESPACIO DEPORTIVO</p>
+        <nav aria-label="Navegación principal">
+          {navigation.slice(0, 3).map(navItem)}
+          <p className="sidebar-label community-label">COMUNIDAD</p>
+          {navigation.slice(3).map(navItem)}
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="fair-play">
+            <Icon name="court" />
+            <p>La pista es de todos.</p>
+            <span>Disfrutémosla con juego limpio.</span>
+          </div>
+          <div className="household-mini">
+            <span className="avatar">{me?.household_code || "FC"}</span>
+            <div>
+              <strong>
+                {me
+                  ? `Vivienda ${me.household_code ?? me.household_id}`
+                  : "Tu vivienda"}
+              </strong>
+              <span>Miembro de la comunidad</span>
+            </div>
+          </div>
+          <Button variant="ghost" onClick={onLogout}>
+            <Icon name="logout" />
+            Cerrar sesión
+          </Button>
+        </div>
+      </aside>
+      <div className="app-body">
+        <header className="topbar">
+          <div className="desktop-breadcrumb">
+            Mi comunidad <Icon name="chevron" />
+            <strong>{current.label}</strong>
+          </div>
+          <div className="mobile-brand">
+            <Brand />
+          </div>
+          <div className="topbar-actions">
+            <span className={`connection ${online ? "" : "disconnected"}`}>
+              <span className="status-dot" />
+              {online ? "En línea" : "Sin conexión"}
+            </span>
+            <button
+              className="notification-button"
+              aria-label={`Notificaciones, ${unreadCount} sin leer`}
+              onClick={() => navigate("notifications")}
+            >
+              <Icon name="bell" />
+              {unreadCount > 0 && (
+                <span className="notification-dot">{unreadCount}</span>
+              )}
+            </button>
+            <span className="top-avatar">{me?.household_code || "FC"}</span>
+          </div>
+        </header>
+        <OfflineBanner isOnline={online} />
+        <main id="main-content" className="main-content" tabIndex={-1}>
+          {children}
+          <footer className="page-footer">
+            <span>FAIRCOURT / COMUNIDAD EN JUEGO</span>
+            <span>Un turno para cada uno. Una pista para todos.</span>
+          </footer>
+        </main>
+      </div>
+      <nav className="mobile-nav" aria-label="Navegación móvil">
+        {navigation.slice(0, 3).map(navItem)}
+        <button
+          aria-label="Más"
+          className={`nav-item ${navigation.slice(3).some((item) => item.id === activeView) || more ? "nav-active" : ""}`}
+          onClick={() => setMore(true)}
+          aria-haspopup="dialog"
+        >
+          <Icon name="more" />
+          <span>Más</span>
+          {unreadCount > 0 && (
+            <span className="mobile-count">{unreadCount}</span>
+          )}
+        </button>
+      </nav>
+      {more && (
+        <Dialog title="Tu comunidad" onClose={() => setMore(false)}>
+          <nav className="more-nav" aria-label="Más secciones">
+            {navigation.slice(3).map(navItem)}
+          </nav>
+          <Button variant="ghost" onClick={onLogout}>
+            <Icon name="logout" />
+            Cerrar sesión
+          </Button>
+        </Dialog>
+      )}
+    </div>
+  );
 }
