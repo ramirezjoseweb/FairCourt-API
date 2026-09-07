@@ -1,7 +1,9 @@
-import { test, expect, chromium } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { setup, navigate } from "./fixtures";
-test("pwa: production manifest, valid icons, installability and offline cold opening", async ({}, testInfo) => {
-  const context = await chromium.launchPersistentContext(
+test("pwa: production manifest, valid icons, installability and offline cold opening", async ({
+  playwright,
+}, testInfo) => {
+  const context = await playwright.chromium.launchPersistentContext(
     testInfo.outputPath("pwa-profile"),
     {
       channel: process.env.PW_CHANNEL || "msedge",
@@ -50,12 +52,24 @@ test("pwa: production manifest, valid icons, installability and offline cold ope
     await cdp.send("Network.setCacheDisabled", { cacheDisabled: true });
     await cdp.send("Network.emulateNetworkConditionsByRule", {
       offline: true,
-      matchedNetworkConditions: [{ urlPattern: "", latency: 0, downloadThroughput: -1, uploadThroughput: -1 }],
+      matchedNetworkConditions: [
+        {
+          urlPattern: "",
+          latency: 0,
+          downloadThroughput: -1,
+          uploadThroughput: -1,
+        },
+      ],
     });
     await cdp.send("Network.overrideNetworkState", {
-      offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1,
+      offline: true,
+      latency: 0,
+      downloadThroughput: -1,
+      uploadThroughput: -1,
     });
-    await context.route("http://127.0.0.1:4173/**", route => route.abort("internetdisconnected"));
+    await context.route("http://127.0.0.1:4173/**", (route) =>
+      route.abort("internetdisconnected"),
+    );
     await page.reload();
     const offline = page;
     await expect(

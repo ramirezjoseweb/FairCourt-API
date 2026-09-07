@@ -577,12 +577,12 @@ test("offline: uncached day shows error instead of another date; retry works", a
 for (const width of [375, 768, 1440]) {
   test(`visual: all screens, long content, dialogs and keyboard at ${width}px`, async ({
     page,
-  }) => {
+  }, testInfo) => {
     test.setTimeout(60000);
     await page.setViewportSize({ width, height: width === 375 ? 812 : 1000 });
     await setup(page, { authenticated: false });
     await page.goto("/");
-    const out = resolve("../docs/images/frontend");
+    const out = testInfo.outputPath("screenshots");
     mkdirSync(out, { recursive: true });
     await page.screenshot({
       path: resolve(out, `after-login-${width}.png`),
@@ -646,7 +646,7 @@ for (const width of [375, 768, 1440]) {
     }
     await page.screenshot({
       path: resolve(out, `after-dialog-${width}.png`),
-      fullPage: true,
+      fullPage: false,
       animations: "disabled",
     });
     await page.keyboard.press("Escape");
@@ -683,4 +683,54 @@ test("responsive: very long content and expanded audit remain within viewport", 
       ),
     ).toBe(true);
   }
+});
+
+test("connectivity: unreachable API is detected even when the browser reports online", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await start(page);
+  await navigate(page, "Disponibilidad");
+  await page.getByLabel("Consultar fecha", { exact: true }).fill("2026-09-09");
+  await expect(page.locator(".slot-row")).toHaveCount(8);
+  state.networkDown = true;
+  await page.getByRole("button", { name: "Actualizar", exact: true }).click();
+  await expect(page.locator(".offline-banner")).toBeVisible();
+  expect(await page.evaluate(() => navigator.onLine)).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "Reservar", exact: true }).first(),
+  ).toBeDisabled();
+  await expect(page.locator(".slot-row")).toHaveCount(8);
+  state.networkDown = false;
+  await page.getByRole("button", { name: "Reintentar conexión" }).click();
+  await expect(page.locator(".offline-banner")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Reservar", exact: true }).first(),
+  ).toBeEnabled();
+  await expect(page.getByLabel("Consultar fecha", { exact: true })).toHaveValue(
+    "2026-09-09",
+  );
+});
+test("connectivity: login can retry after a transport failure", async ({
+  page,
+}) => {
+  const state = await setup(page, { authenticated: false });
+  await page.goto("/");
+  await page.getByLabel("Código de vivienda").fill("A1");
+  await page.getByLabel("Correo electrónico").fill("vecino@faircourt.es");
+  state.networkDown = true;
+  await page
+    .getByRole("button", { name: "Solicitar código de acceso" })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Solicitar código de acceso" }),
+  ).toBeDisabled();
+  state.networkDown = false;
+  await page.getByRole("button", { name: "Reintentar conexión" }).click();
+  await page
+    .getByRole("button", { name: "Solicitar código de acceso" })
+    .click();
+  await expect(
+    page.getByLabel("Código de acceso", { exact: true }),
+  ).toBeVisible();
 });

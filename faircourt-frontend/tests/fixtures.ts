@@ -12,7 +12,7 @@ export function slotsFor(date: string): Slot[] {
     .map((hour, index) => ({
       start_at: stamp(hour, date),
       end_at: stamp(hour + 1, date),
-      status: [1, 2, 4].includes(index) ? "BOOKED" : "FREE",
+      status: [1, 2, 4].includes(index) ? "OCCUPIED" : "FREE",
       reservation_id: index === 2 ? 11 : null,
       is_mine: index === 2,
       can_book: ![1, 2, 4, 7].includes(index),
@@ -262,7 +262,7 @@ export async function setup(
             (state.me.active_waitlists_count ?? 0) + 1;
         } else {
           slot.is_mine = true;
-          slot.status = "BOOKED";
+          slot.status = "OCCUPIED";
           slot.can_book = false;
           slot.can_join_waitlist = false;
         }

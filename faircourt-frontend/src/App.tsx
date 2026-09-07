@@ -11,6 +11,7 @@ import {
 } from "./components/ui";
 import { useAction } from "./hooks/useAction";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { retryConnection } from "./utils/networkStatus";
 
 export default function App() {
   const [token, setToken] = useState(() =>
@@ -101,7 +102,14 @@ export default function App() {
               : `Introduce el código de acceso generado para ${email}.`}
           </p>
           {!isOnline && (
-            <Notice kind="info">Necesitas conexión para iniciar sesión.</Notice>
+            <Notice kind="info">
+              Necesitas conexión para iniciar sesión.{" "}
+              {navigator.onLine && (
+                <Button variant="ghost" onClick={retryConnection}>
+                  Reintentar conexión
+                </Button>
+              )}
+            </Notice>
           )}
           <form onSubmit={submit} className="auth-form">
             {step === "request" ? (

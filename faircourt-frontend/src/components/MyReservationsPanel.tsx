@@ -160,7 +160,7 @@ export function MyReservationsPanel({
       <CacheStamp cacheKey="faircourt_cache_reservations" />
       {resource.loading && !resource.data ? (
         <Loading />
-      ) : (
+      ) : resource.error && !resource.data ? null : (
         <>
           <section>
             <div className="section-heading">

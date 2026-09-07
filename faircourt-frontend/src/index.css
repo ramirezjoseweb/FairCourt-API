@@ -2884,3 +2884,15 @@ details {
     font-size: 14px;
   }
 }
+
+.offline-banner {
+  flex-wrap: wrap;
+}
+.offline-banner > span {
+  flex: 1;
+  min-width: 200px;
+}
+.offline-banner > .button {
+  font-size: 12px;
+  flex-shrink: 0;
+}

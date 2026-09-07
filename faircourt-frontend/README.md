@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
+# FairCourt — frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interfaz de reservas comunitarias construida con React, TypeScript, Vite y Tailwind.
 
-Currently, two official plugins are available:
+## Desarrollo local
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Desde esta carpeta:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Abre http://127.0.0.1:5173. El cliente conserva la API existente en http://127.0.0.1:8000 y el acceso por vivienda, correo y OTP. Para utilizar datos reales, inicia el backend siguiendo el README de la raíz. La ayuda para consultar el OTP en la terminal solo aparece en desarrollo.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Comprobaciones
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+npm run build
+npm run lint
+npm run test:e2e
 ```
+
+Las pruebas se ejecutan contra la compilación de producción en el puerto 4173. Si no existe un servidor de previsualización, Playwright lo compila e inicia. Si ya está abierto, ejecuta primero el build para actualizarlo.
+
+Se utiliza Microsoft Edge en Windows. Para probar con Google Chrome instalado:
+
+```powershell
+$env:PW_CHANNEL = "chrome"
+npm run test:e2e
+```
+
+El conjunto incluye 26 escenarios de acceso, reservas, listas de espera, asistencia, avisos, auditoría, votaciones, red, accesibilidad y diseño adaptable. Las respuestas de la API están controladas dentro de los tests; no se crean reservas ni votos en la base de datos real.
+
+Las capturas de cada ejecución se guardan dentro de test-results. Tras una batería completa correcta, ejecuta npm run test:e2e:export para copiar las 27 capturas verificadas a ../docs/images/frontend/current. El informe de Playwright se puede abrir con npm run test:e2e:report. Los perfiles de navegador, trazas e informes temporales están excluidos de Git.
+
+## Interfaz y datos
+
+- Componentes visuales compartidos: src/components/ui.tsx.
+- Carga de datos con protección frente a respuestas tardías: src/hooks/useResource.ts.
+- Acciones con bloqueo de envíos duplicados: src/hooks/useAction.ts.
+- Contratos HTTP y almacenamiento de sesión: src/api.
+- Estilos, paleta, composición adaptable y movimiento reducido: src/index.css.
+
+Las seis secciones originales siguen disponibles. La navegación es lateral en ordenador e inferior en móvil. Los detalles técnicos útiles de reservas, vivienda y auditoría siguen accesibles mediante desplegables. El token de sesión ya no se expone en pantalla.
+
+## Sin conexión y PWA
+
+La compilación de producción incluye el manifiesto, los iconos y el service worker. El service worker se desactiva en desarrollo para evitar mezclar versiones durante los cambios.
+
+La última información consultada se conserva con las claves de caché existentes. Las escrituras se deshabilitan tanto cuando el navegador pierde conexión como cuando una petición no puede alcanzar la API. Un error HTTP del servidor no se interpreta como desconexión. Se puede reintentar la conexión y los datos se actualizan al recuperarla.
+
+La prueba de PWA verifica los requisitos de instalación, el control del service worker, los tamaños reales de los iconos y la recarga con la red bloqueada y la caché HTTP desactivada. No instala un acceso directo en el sistema operativo.
+
+Consulta la matriz completa y las comparaciones visuales en ../docs/frontend-parity.md.

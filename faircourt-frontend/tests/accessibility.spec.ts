@@ -27,6 +27,7 @@ for (const width of [375, 1440]) {
         )
         .toEqual([]);
     }
+    await expect(page.getByLabel("Código de vivienda")).toBeVisible();
     await check("Acceso");
     await page.getByLabel("Código de vivienda").fill("A1");
     await page.getByLabel("Correo electrónico").fill("vecino@faircourt.es");
