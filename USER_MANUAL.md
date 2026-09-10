@@ -1,7 +1,7 @@
 # Manual de usuario de FairCourt
 
 ## Introducción
-FairCourt es una aplicación destinada a gestionar las reservas de una pista deportiva comunitaria mediante reglas de equidad, listas de espera, control de asistencia y mecanismos de transparencia.
+FairCourt es una aplicación destinada a gestionar las reservas de instalaciones deportivas y espacios comunitarios mediante reglas de equidad, listas de espera, control de asistencia y mecanismos de transparencia.
 Este manual explica el funcionamiento de la aplicación desde el punto de vista del usuario.
 
 ## Entorno de demostración
@@ -31,17 +31,23 @@ También podemos encontrar una barra de navegación en la parte superior
 de la página que nos permite navegar por la aplicación y nos dice en qué estado 
 estamos usando la aplicación, online/offline.
 
-## Consulta de disponibilidad de pista 
-En la página de disponibilidad, podemos consultar los horarios de la pista 
-y si está ocupada o no según que franjas horarias haya disponibles. El usuario 
-tendrá libertad para crear una reserva, apuntarse a una waitlist, mirar en el 
-calendario y elegir una fecha disponible para consultar las reservas de esa fecha. 
+## Consulta de disponibilidad de instalaciones
+En la página de disponibilidad se elige primero la instalación. Pádel y Tenis
+aparecen destacados por ser los espacios más solicitados; el selector completo
+incluye también pérgolas, petanca, pista polideportiva, barra de bar, mesas,
+sala multiusos y sauna. A continuación se puede elegir una fecha y consultar
+las franjas horarias de ese espacio. Cada instalación mantiene su propia
+disponibilidad y lista de espera.
+
+El usuario puede crear una reserva o apuntarse a una lista de espera. Al cambiar
+de instalación, la agenda se actualiza automáticamente sin mezclar sus reservas
+con las de otros espacios.
 Como información adicional, en cada franja horaria podemos ver si está libre de 
 reserva, ocupada o bloqueada si la vivienda no cumple las reglas, también nos 
 indica si hay cola en la lista de waitlists para cualquier slot.
 
 ##  Mis reservas 
-Desde la vista de mis reservas, podemos ver las reservas activas y 
+Desde la vista de mis reservas, podemos ver la instalación asociada a cada reserva activa y
 pasadas de nuestra vivienda. También nos muestra el estado de dichas 
 reservas. Desde está parte de la aplicación se realizarán acciones críticas 
 cuando haya reservas activas, estas acciones son las de realizar el check-in de  

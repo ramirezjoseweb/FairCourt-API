@@ -18,6 +18,8 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 
 - Registro mediante vivienda y código OTP
 - Autenticación JWT
+- Gestión multipista y de espacios comunitarios
+- Catálogo priorizado con Pádel y Tenis en primer lugar
 - Reserva y cancelación de franjas horarias
 - Lista de espera automática
 - Check-in mediante QR

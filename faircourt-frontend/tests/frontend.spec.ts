@@ -81,7 +81,7 @@ test("home: household information and technical details retained", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Encontrar un horario" }).click();
   await expect(
-    page.getByRole("heading", { name: "La pista te espera." }),
+    page.getByRole("heading", { name: "Tu comunidad te espera." }),
   ).toBeVisible();
 });
 test("agenda: daily dates, labels, eligibility and manual refresh", async ({
@@ -112,7 +112,7 @@ test("agenda: daily dates, labels, eligibility and manual refresh", async ({
     .poll(
       () =>
         state.requests.filter(
-          (row) => row.path === "/reservations/slots?day=2026-09-09",
+          (row) => row.path === "/reservations/slots?day=2026-09-09&facility_id=1",
         ).length,
     )
     .toBeGreaterThan(0);
@@ -122,7 +122,7 @@ test("agenda: daily dates, labels, eligibility and manual refresh", async ({
     .poll(
       () =>
         state.requests.filter(
-          (row) => row.path === "/reservations/slots?day=2026-09-09",
+          (row) => row.path === "/reservations/slots?day=2026-09-09&facility_id=1",
         ).length,
     )
     .toBeGreaterThan(1);
@@ -134,6 +134,29 @@ test("agenda: daily dates, labels, eligibility and manual refresh", async ({
   await expect(page.getByLabel("Consultar fecha", { exact: true })).toHaveValue(
     day,
   );
+});
+test("facilities: Pádel and Tenis lead the catalog and selection scopes availability", async ({
+  page,
+}) => {
+  const state = await setup(page);
+  await start(page);
+  await navigate(page, "Disponibilidad");
+  const priorities = page.locator(".facility-priority");
+  await expect(priorities).toHaveCount(2);
+  await expect(priorities.nth(0)).toContainText("Pádel");
+  await expect(priorities.nth(1)).toContainText("Tenis");
+  const selector = page.getByLabel("Ver todas las instalaciones");
+  await expect(selector.locator("option").nth(0)).toContainText("Pádel");
+  await expect(selector.locator("option").nth(1)).toContainText("Tenis");
+  await selector.selectOption("2");
+  await expect(page.locator(".facility h2")).toHaveText("Tenis");
+  await expect
+    .poll(() =>
+      state.requests.some(
+        (row) => row.path === `/reservations/slots?day=${day}&facility_id=2`,
+      ),
+    )
+    .toBe(true);
 });
 test("booking: one request per click burst; success and selected date persist", async ({
   page,
@@ -162,7 +185,10 @@ test("booking: one request per click burst; success and selected date persist", 
     (row) => row.path === "/reservations" && row.method === "POST",
   );
   expect(posts).toHaveLength(1);
-  expect(posts[0].body).toEqual({ start_at: stamp(9, "2026-09-09") });
+  expect(posts[0].body).toEqual({
+    facility_id: 1,
+    start_at: stamp(9, "2026-09-09"),
+  });
   expect(posts[0].authorization).toBe("Bearer test-token");
   await expect(
     page.getByRole("status").filter({ hasText: "Reserva confirmada" }),
@@ -198,7 +224,7 @@ test("agenda: latest day wins over delayed response; empty and unknown status", 
   const state = await setup(page);
   await start(page);
   await navigate(page, "Disponibilidad");
-  state.delays.set("/reservations/slots?day=2026-09-08", 600);
+  state.delays.set("/reservations/slots?day=2026-09-08&facility_id=1", 600);
   state.slots.set("2026-09-08", slotsFor("2026-09-08").slice(0, 2));
   state.slots.set("2026-09-09", [
     { ...slotsFor("2026-09-09")[0], status: "MAINTENANCE", can_book: false },
@@ -206,7 +232,7 @@ test("agenda: latest day wins over delayed response; empty and unknown status", 
   await page.getByLabel("Consultar fecha", { exact: true }).fill("2026-09-08");
   await expect
     .poll(() =>
-      state.requests.some((row) => row.path.endsWith("day=2026-09-08")),
+      state.requests.some((row) => row.path.includes("day=2026-09-08")),
     )
     .toBe(true);
   await page.getByLabel("Consultar fecha", { exact: true }).fill("2026-09-09");

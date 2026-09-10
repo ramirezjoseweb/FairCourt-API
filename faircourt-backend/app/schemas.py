@@ -24,14 +24,34 @@ class TokenOut(BaseModel):
 class MessageOut(BaseModel):
     message: str
 
+
+class FacilityOut(BaseModel):
+    id: int
+    slug: str
+    name: str
+    category: str
+    description: str | None = None
+    icon: str
+    priority: int
+    is_reservable: bool
+    opening_hour: int
+    closing_hour: int
+    slot_duration_minutes: int
+
+    class Config:
+        from_attributes = True
+
 # Clase de la petición de reserva 
 class CreateReservationIn(BaseModel): 
+    facility_id: int
     start_at: datetime 
 
 # Clase de la respuesta de reserva 
 class ReservationOut(BaseModel): 
     id: int
     household_id: int 
+    facility_id: int
+    facility: FacilityOut
     start_at: datetime
     end_at: datetime
     status: str
@@ -55,11 +75,14 @@ class SlotOut(BaseModel):
 
 # Clase de la petición de lista de espera 
 class WaitlistIn(BaseModel): 
+    facility_id: int
     start_at: datetime
 
 # Clase de la respuesta de lista de espera 
 class WaitlistOut(BaseModel): 
     id: int
+    facility_id: int
+    facility: FacilityOut
     start_at: datetime
     household_id: int 
     created_at: datetime
@@ -83,6 +106,8 @@ class NoShowProcessOut(BaseModel):
 
 class WaitlistSummaryOut(BaseModel): 
     id: int 
+    facility_id: int
+    facility: FacilityOut
     start_at: datetime
     status:str
 
@@ -156,4 +181,4 @@ class NotificationOut(BaseModel):
     created_at: datetime
 
     class Config: 
-        from_attributes = True 
+        from_attributes = True

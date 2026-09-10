@@ -9,7 +9,8 @@ Se modelan:
 - Household (vivienda / unidad principal del sistema)
 - User (usuario asociado a una vivienda)
 - AuthOTP (autenticación basada en código OTP)
-- Reservation (reserva de franja horaria)
+- Facility (instalación o espacio reservable)
+- Reservation (reserva de una instalación y franja horaria)
 - WaitlistEntry (entrada en lista de espera)
 
 Las restricciones a nivel de base de datos garantizan integridad
@@ -117,9 +118,31 @@ class AuthOTP(Base):
     used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+class Facility(Base):
+    """Instalación comunitaria que puede mostrarse y reservarse."""
+
+    __tablename__ = "facilities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    icon = Column(String, default="court", nullable=False)
+    priority = Column(Integer, default=100, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_reservable = Column(Boolean, default=True, nullable=False)
+    opening_hour = Column(Integer, default=9, nullable=False)
+    closing_hour = Column(Integer, default=22, nullable=False)
+    slot_duration_minutes = Column(Integer, default=60, nullable=False)
+
+    reservations = relationship("Reservation", back_populates="facility")
+    waitlist_entries = relationship("WaitlistEntry", back_populates="facility")
+
+
 class Reservation(Base):
     """
-    Reserva de una franja horaria para una única pista.
+    Reserva de una franja horaria para una instalación concreta.
 
     Reglas de negocio importantes:
 
@@ -137,10 +160,12 @@ class Reservation(Base):
     __tablename__ = "reservations"
     __table_args__ = (
         Index("ix_reservations_household_start", "household_id", "start_at"),
+        Index("ix_reservations_facility_start", "facility_id", "start_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
+    facility_id = Column(Integer, ForeignKey("facilities.id"), nullable=False)
     start_at = Column(DateTime, nullable=False)
     end_at = Column(DateTime, nullable=False)
     status = Column(String, default=ReservationStatus.ACTIVE.value, nullable=False)
@@ -151,6 +176,7 @@ class Reservation(Base):
     cooldown_group = Column(String, nullable=True)
 
     household = relationship("Household", back_populates="reservations")
+    facility = relationship("Facility", back_populates="reservations")
 
 class WaitlistEntry(Base):
     """
@@ -165,16 +191,24 @@ class WaitlistEntry(Base):
     """
     __tablename__ = "waitlist_entries"
     __table_args__ = (
-        Index("ix_waitlist_start_created", "start_at", "created_at"),
-        UniqueConstraint("household_id", "start_at", name="uq_waitlist_household_start"),
+        Index("ix_waitlist_facility_start_created", "facility_id", "start_at", "created_at"),
+        UniqueConstraint(
+            "household_id",
+            "facility_id",
+            "start_at",
+            name="uq_waitlist_household_facility_start",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     start_at = Column(DateTime, nullable=False)
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
+    facility_id = Column(Integer, ForeignKey("facilities.id"), nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     status = Column(String, default="WAITING", nullable=False)
+
+    facility = relationship("Facility", back_populates="waitlist_entries")
 
 class AuditLog(Base): 
     __tablename__ = "audit_log" 

@@ -1,6 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { createReservation, getSlots, joinWaitlist } from "../api/reservations";
 import type { Slot } from "../api/reservations";
+import type { Facility } from "../api/facilities";
 import { useResource } from "../hooks/useResource";
 import { useAction } from "../hooks/useAction";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -27,18 +28,26 @@ import {
 import { CacheStamp } from "./CacheStamp";
 
 export function SlotsPanel({
+  facilities,
   day,
   onDayChange,
   refreshKey,
   onChanged,
 }: {
+  facilities: Facility[];
   day: string;
   onDayChange: (day: string) => void;
   refreshKey: number;
   onChanged: () => void;
 }) {
-  const loader = useCallback(() => getSlots(day), [day]);
-  const resource = useResource(loader, day, refreshKey);
+  const [facilityId, setFacilityId] = useState(facilities[0]?.id ?? 0);
+  const facility =
+    facilities.find((item) => item.id === facilityId) ?? facilities[0];
+  const loader = useCallback(
+    () => getSlots(day, facility.id),
+    [day, facility.id],
+  );
+  const resource = useResource(loader, `${facility.id}-${day}`, refreshKey);
   const action = useAction();
   const online = useOnlineStatus();
   const slots = [...(resource.data ?? [])].sort((a, b) =>
@@ -47,25 +56,65 @@ export function SlotsPanel({
   async function reserve(slot: Slot, waitlist = false) {
     await action.run(
       async () => {
-        if (waitlist) await joinWaitlist(slot.start_at);
-        else await createReservation(slot.start_at);
+        if (waitlist) await joinWaitlist(facility.id, slot.start_at);
+        else await createReservation(facility.id, slot.start_at);
         onChanged();
       },
       waitlist
-        ? `Te has unido a la lista de espera para el ${dateTime(slot.start_at)}.`
-        : `Reserva confirmada para el ${dateTime(slot.start_at)}.`,
+        ? `Te has unido a la lista de espera de ${facility.name} para el ${dateTime(slot.start_at)}.`
+        : `Reserva confirmada para ${facility.name} el ${dateTime(slot.start_at)}.`,
     );
   }
   return (
     <div className="page-stack">
       <PageHeader
         eyebrow="ENCUENTRA TU MOMENTO"
-        title="La pista te espera."
-        description="Elige un día y reserva tu próximo rato de deporte."
+        title="Tu comunidad te espera."
+        description="Elige una instalación y reserva el momento que necesitas."
         action={
           <RefreshButton loading={resource.loading} onClick={resource.reload} />
         }
       />
+      <section className="facility-picker" aria-labelledby="facility-picker-title">
+        <div className="facility-picker-heading">
+          <div>
+            <p className="eyebrow">ELIGE TU ESPACIO</p>
+            <h2 id="facility-picker-title">Instalaciones</h2>
+          </div>
+          <span className="facility-total">{facilities.length} disponibles</span>
+        </div>
+        <div className="facility-priority-list">
+          {facilities.slice(0, 2).map((item, index) => (
+            <button
+              key={item.id}
+              className={`facility-priority ${item.id === facility.id ? "selected" : ""}`}
+              aria-pressed={item.id === facility.id}
+              onClick={() => setFacilityId(item.id)}
+            >
+              <span className="facility-rank">0{index + 1}</span>
+              <span className="facility-priority-copy">
+                <strong>{item.name}</strong>
+                <small>{item.description}</small>
+              </span>
+              <Icon name="arrow" />
+            </button>
+          ))}
+        </div>
+        <label className="facility-select" htmlFor="facility-select">
+          <span>Ver todas las instalaciones</span>
+          <select
+            id="facility-select"
+            value={facility.id}
+            onChange={(event) => setFacilityId(Number(event.target.value))}
+          >
+            {facilities.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} · {item.category}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
       <section className="panel agenda-panel">
         <div className="agenda-toolbar">
           <div className="facility">
@@ -73,8 +122,10 @@ export function SlotsPanel({
               <Icon name="court" />
             </span>
             <div>
-              <h2>Pista comunitaria</h2>
-              <span className="muted small">Un espacio para compartir</span>
+              <h2>{facility.name}</h2>
+              <span className="muted small">
+                {facility.category} · {facility.opening_hour}:00–{facility.closing_hour}:00
+              </span>
             </div>
           </div>
           <label className="date-field">
@@ -159,7 +210,7 @@ export function SlotsPanel({
         <div className="agenda-content">
           <Feedback error={action.error} message={action.message} />
           <ResourceError error={resource.error} retry={resource.reload} />
-          <CacheStamp cacheKey={`faircourt_cache_slots_${day}`} />
+          <CacheStamp cacheKey={`faircourt_cache_slots_${facility.id}_${day}`} />
           {resource.loading ? (
             <Loading />
           ) : (

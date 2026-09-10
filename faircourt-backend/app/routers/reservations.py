@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings 
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import Reservation, ReservationStatus, Household, User, WaitlistEntry
+from app.models import Facility, Reservation, ReservationStatus, Household, User, WaitlistEntry
 from app.services.audit import log_event
 from app.services.notifications import notify_household
 from app.schemas import CreateReservationIn, ReservationOut, SlotOut, WaitlistIn, WaitlistOut, CheckinQRout, MessageOut, NoShowProcessOut
@@ -69,13 +69,27 @@ def create_reservation(
     if household.suspended_until and household.suspended_until > now: 
         raise HTTPException(status_code=403, detail="La vivienda está suspendida temporalmente") 
 
+    facility = (
+        db.query(Facility)
+        .filter(Facility.id == payload.facility_id)
+        .filter(Facility.is_active.is_(True))
+        .first()
+    )
+    if not facility:
+        raise HTTPException(status_code=404, detail="Instalación no encontrada")
+    if not facility.is_reservable:
+        raise HTTPException(status_code=409, detail="Esta instalación no admite reservas")
+
     # Comprueba si la reserva está dentro del horario de la pista 
     """if payload.start_at.hour < settings.OPENING_HOUR or payload.start_at.hour > settings.CLOSING_HOUR: 
         raise HTTPException(status_code=400, detail="La reserva debe estar dentro del horario de la pista")
     """
 
     start_at = payload.start_at
-    end_at = start_at + timedelta(hours=settings.SLOT_DURATION_HOURS) 
+    valid_starts = {slot_start for slot_start, _ in generate_daily_slots(start_at.date(), facility)}
+    if start_at not in valid_starts:
+        raise HTTPException(status_code=400, detail="La hora no corresponde a una franja de la instalación")
+    end_at = start_at + timedelta(minutes=facility.slot_duration_minutes)
 
     # Comprueba si la fecha de inicio está en el pasado 
     if start_at < now: 
@@ -89,7 +103,7 @@ def create_reservation(
         )
 
     # Comprueba si la franja horaria está libre 
-    if not slot_is_free(db, start_at): 
+    if not slot_is_free(db, facility.id, start_at):
         raise HTTPException(status_code=409, detail="La franja horaria solicitada ya está ocupada")   
 
     # Comprueba si la reserva empieza en una franja exacta (ej: 18:00, 19:00...) 
@@ -100,7 +114,7 @@ def create_reservation(
         )"""
     
     # Comprueba si la vivienda tiene el máximo de reservas activas esta semana 
-    weekly_count = count_active_reservations_this_week(db, household.id, start_at)
+    weekly_count = count_active_reservations_this_week(db, household.id, facility.id, start_at)
     if weekly_count >= settings.MAX_ACTIVE_RESERVATIONS_PER_WEEK: 
         raise HTTPException(
             status_code = 409, 
@@ -110,7 +124,7 @@ def create_reservation(
             ),
         )
 
-    on_cooldown, cooldown_group = household_is_on_cooldown_for_slot(db, household.id, start_at) 
+    on_cooldown, cooldown_group = household_is_on_cooldown_for_slot(db, household.id, facility.id, start_at)
     if on_cooldown: 
         raise HTTPException(
             status_code = 409, 
@@ -123,6 +137,7 @@ def create_reservation(
     # Creamos la reserva 
     reservation = Reservation(
         household_id=household.id, 
+        facility_id=facility.id,
         start_at=start_at,
         end_at=end_at, 
         status = ReservationStatus.ACTIVE.value, 
@@ -136,7 +151,7 @@ def create_reservation(
         db,
         household_id=reservation.household_id,
         type="RESERVATION_CREATED",
-        message=f"Reserva creada para {reservation.start_at.strftime('%d/%m/%Y %H:%M')}.",
+        message=f"Reserva de {facility.name} creada para {reservation.start_at.strftime('%d/%m/%Y %H:%M')}.",
     )
     db.commit()
 
@@ -151,7 +166,11 @@ def create_reservation(
         user_id=current_user.id, 
         household_id=household.id, 
         reservation_id=reservation.id, 
-        metadata={"start_at": reservation.start_at.isoformat()},
+        metadata={
+            "facility_id": facility.id,
+            "facility_name": facility.name,
+            "start_at": reservation.start_at.isoformat(),
+        },
     )
     db.commit()
 
@@ -237,12 +256,15 @@ def cancel_reservation(
         db,
         household_id=reservation.household_id,
         type="RESERVATION_CANCELLED",
-        message=f"Reserva cancelada para {reservation.start_at.strftime('%d/%m/%Y %H:%M')}.",
+        message=(
+            f"Reserva de {reservation.facility.name} cancelada para "
+            f"{reservation.start_at.strftime('%d/%m/%Y %H:%M')}."
+        ),
     )
     db.commit()
 
     # Intentamos promocionar la lista de espera para la franja horaria de la reserva cancelada
-    try_promote_waitlist_for_slot(db, reservation.start_at) 
+    try_promote_waitlist_for_slot(db, reservation.facility_id, reservation.start_at)
     
     log_event(
         db, 
@@ -250,7 +272,11 @@ def cancel_reservation(
         user_id=current_user.id, 
         household_id=reservation.household_id, 
         reservation_id=reservation.id, 
-        metadata={"start_at": reservation.start_at.isoformat()},
+        metadata={
+            "facility_id": reservation.facility_id,
+            "facility_name": reservation.facility.name,
+            "start_at": reservation.start_at.isoformat(),
+        },
     )
     db.commit()
 
@@ -261,6 +287,7 @@ def cancel_reservation(
 @router.get("/slots", response_model=list[SlotOut])
 def get_slots(
     day: date, 
+    facility_id: int,
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_user), 
 ): 
@@ -278,13 +305,25 @@ def get_slots(
     household = db.query(Household).filter(Household.id == current_user.household_id).first() 
     now = utcnow() 
 
-    slots = generate_daily_slots(day) # Genera las franjas horarias del día
+    facility = (
+        db.query(Facility)
+        .filter(Facility.id == facility_id)
+        .filter(Facility.is_active.is_(True))
+        .first()
+    )
+    if not facility:
+        raise HTTPException(status_code=404, detail="Instalación no encontrada")
+    if not facility.is_reservable:
+        return []
+
+    slots = generate_daily_slots(day, facility)
 
     day_start = datetime.combine(day, datetime.min.time()) # 00:00:00
     day_end = day_start + timedelta(days=1)  # 00:00:00 del día siguiente
     
     reservations = (
         db.query(Reservation) 
+        .filter(Reservation.facility_id == facility.id)
         .filter(Reservation.start_at >= day_start) # Filtra las reservas que empiezan en el día indicado
         .filter(Reservation.start_at < day_end) # y que terminan en el día indicado
         .filter(Reservation.status == ReservationStatus.ACTIVE.value)
@@ -310,11 +349,11 @@ def get_slots(
     
         #can_book , _ = can_household_book_slot(db, household, start_at, now) # Comprueba si la vivienda puede reservar en esta franja horaria
         #can_join_waitlist , _ = can_household_join_waitlist(db, household, start_at, now) # Comprueba si la vivienda puede apuntarse a la lista de espera en esta franja horaria
-        waitlist_count = waitlist_count_for_slot(db, start_at) # Cuenta cuántas personas hay en la lista de espera en esta franja horaria
-        in_waitlist = household_is_in_waitlist(db, household.id, start_at) # Comprueba si la vivienda actual ya está en la lista de espera en esta franja horaria
+        waitlist_count = waitlist_count_for_slot(db, facility.id, start_at)
+        in_waitlist = household_is_in_waitlist(db, household.id, facility.id, start_at)
 
-        can_book, book_reason = can_household_book_slot(db, household, start_at, now)
-        can_join_waitlist, waitlist_reason = can_household_join_waitlist(db, household, start_at, now) 
+        can_book, book_reason = can_household_book_slot(db, household, facility.id, start_at, now)
+        can_join_waitlist, waitlist_reason = can_household_join_waitlist(db, household, facility.id, start_at, now)
 
         result.append(
             SlotOut( # Añade la franja horaria al resultado
@@ -327,6 +366,8 @@ def get_slots(
                 can_join_waitlist = can_join_waitlist, 
                 waitlist_count = waitlist_count, 
                 in_waitlist = in_waitlist,  
+                book_reason = book_reason,
+                waitlist_reason = waitlist_reason,
             )
         )
 
@@ -352,6 +393,19 @@ def join_waitlist(
         raise HTTPException(status_code=403, detail="La vivienda está suspendida temporalmente")
 
     start_at = payload.start_at # coge la fecha de inicio de la reserva
+    facility = (
+        db.query(Facility)
+        .filter(Facility.id == payload.facility_id)
+        .filter(Facility.is_active.is_(True))
+        .first()
+    )
+    if not facility:
+        raise HTTPException(status_code=404, detail="Instalación no encontrada")
+    if not facility.is_reservable:
+        raise HTTPException(status_code=409, detail="Esta instalación no admite reservas")
+    valid_starts = {slot_start for slot_start, _ in generate_daily_slots(start_at.date(), facility)}
+    if start_at not in valid_starts:
+        raise HTTPException(status_code=400, detail="La hora no corresponde a una franja de la instalación")
 
     if start_at < now: 
         raise HTTPException(status_code=400, detail="No puedes apuntarte a una franja pasada") 
@@ -362,7 +416,7 @@ def join_waitlist(
             detail=f"La franja debe estar dentro de los próximos {settings.BOOKING_WINDOW_DAYS} días"
         )
     
-    if slot_is_free(db, start_at): 
+    if slot_is_free(db, facility.id, start_at):
         raise HTTPException(
             status_code = 400, 
             detail="La franja está libre, no existe lista de espera"
@@ -374,7 +428,7 @@ def join_waitlist(
             detail="Ya tienes una reserva activa en esa franja"
         )
 
-    if count_active_waitlist_for_household(db, household.id, start_at) >= settings.MAX_ACTIVE_WAITLISTS_PER_WEEK: 
+    if count_active_waitlist_for_household(db, household.id, facility.id, start_at) >= settings.MAX_ACTIVE_WAITLISTS_PER_WEEK:
         raise HTTPException(
             status_code = 409, 
             detail="Ya tienes el máximo de waitlists activas permitidas"
@@ -389,6 +443,7 @@ def join_waitlist(
 
     existing = (db.query(WaitlistEntry)
     .filter(WaitlistEntry.household_id == household.id)
+    .filter(WaitlistEntry.facility_id == facility.id)
     .filter(WaitlistEntry.start_at == start_at)
     .filter(WaitlistEntry.status == "WAITING") 
     .first() 
@@ -402,6 +457,7 @@ def join_waitlist(
     entry = WaitlistEntry(
         start_at = start_at, 
         household_id = household.id, 
+        facility_id = facility.id,
         status = "WAITING", 
         created_at = now, 
     )
@@ -413,6 +469,8 @@ def join_waitlist(
         user_id = current_user.id,
         metadata = {
             "waitlist_entry_id": entry.id,
+            "facility_id": facility.id,
+            "facility_name": facility.name,
             "start_at": entry.start_at.isoformat(), 
             "status": entry.status,
         }
@@ -427,7 +485,10 @@ def join_waitlist(
         db,
         household_id=entry.household_id,
         type="WAITLIST_JOINED",
-        message=f"Te has unido a la lista de espera para {entry.start_at.strftime('%d/%m/%Y %H:%M')}.",
+        message=(
+            f"Te has unido a la lista de espera de {facility.name} para "
+            f"{entry.start_at.strftime('%d/%m/%Y %H:%M')}."
+        ),
     )
     db.commit()
 
@@ -600,7 +661,9 @@ def process_no_shows(
         no_show_count += 1 
 
         # Se intenta promocionar la lista de espera
-        promoted = try_promote_waitlist_for_slot(db, reservation.start_at) 
+        promoted = try_promote_waitlist_for_slot(
+            db, reservation.facility_id, reservation.start_at
+        )
         if promoted: 
             promoted_count += 1 
 
@@ -610,4 +673,3 @@ def process_no_shows(
         "promoted_from_waitlist": promoted_count, 
     }
 
-        
