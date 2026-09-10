@@ -1,5 +1,6 @@
 import { apiRequest } from "./client";
 import { loadFromCache, saveToCache } from "../utils/offlineCache";
+import type { Facility } from "./facilities";
 
 // Tipo para representar un slot.
 export type Slot = {
@@ -20,6 +21,8 @@ export type Slot = {
 export type Reservation = {
     id: number;
     household_id: number;
+    facility_id: number;
+    facility: Facility;
     start_at: string;
     end_at: string;
     status: string;
@@ -58,11 +61,13 @@ export async function getCheckinQr(reservationId: number) {
  *
  * @param day Fecha en formato YYYY-MM-DD.
  */
-export async function getSlots(day: string) {
-    const cacheKey = `faircourt_cache_slots_${day}`;
+export async function getSlots(day: string, facilityId: number) {
+    const cacheKey = `faircourt_cache_slots_${facilityId}_${day}`;
 
     try {
-        const data = await apiRequest<Slot[]>(`/reservations/slots?day=${day}`);
+        const data = await apiRequest<Slot[]>(
+            `/reservations/slots?day=${day}&facility_id=${facilityId}`
+        );
         saveToCache(cacheKey, data);
         return data;
     } catch (error) {
@@ -77,19 +82,22 @@ export async function getSlots(day: string) {
 }
 
 // Función para crear una reserva.
-export async function createReservation(startAt: string) {
+export async function createReservation(facilityId: number, startAt: string) {
     return apiRequest<Reservation>("/reservations", {
         method: "POST",
         body: JSON.stringify({
+            facility_id: facilityId,
             start_at: startAt,
         }),
     });
 }
 
 // Función para unirse a la lista de espera.
-export async function joinWaitlist(startAt: string) {
+export async function joinWaitlist(facilityId: number, startAt: string) {
     return apiRequest<{
         id: number;
+        facility_id: number;
+        facility: Facility;
         start_at: string;
         household_id: number;
         created_at: string;
@@ -97,6 +105,7 @@ export async function joinWaitlist(startAt: string) {
     }>("/reservations/waitlist", {
         method: "POST",
         body: JSON.stringify({
+            facility_id: facilityId,
             start_at: startAt,
         }),
     });

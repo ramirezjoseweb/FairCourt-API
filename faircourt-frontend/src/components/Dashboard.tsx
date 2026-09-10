@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { getMe } from "../api/me";
 import { getMyNotifications } from "../api/notifications";
+import { getFacilities } from "../api/facilities";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useReconnectSync } from "../hooks/useReconnectSync";
 import { useResource } from "../hooks/useResource";
@@ -12,7 +13,7 @@ import { MyReservationsPanel } from "./MyReservationsPanel";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { AuditPanel } from "./AuditPanel";
 import { UnlockPanel } from "./UnlockPanel";
-import { Loading, Notice, ResourceError } from "./ui";
+import { Empty, Loading, Notice, ResourceError } from "./ui";
 import { localDay } from "../utils/format";
 export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [activeView, setActiveView] = useState<AppView>("home");
@@ -26,6 +27,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     "notifications",
     refresh,
   );
+  const facilities = useResource(getFacilities, "facilities", refresh);
   const changed = useCallback(() => setRefresh((value) => value + 1), []);
   const reconnect = useCallback(() => {
     changed();
@@ -53,12 +55,26 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             <DashboardHome me={me.data} onNavigate={setActiveView} />
           )}
           {activeView === "slots" && (
-            <SlotsPanel
-              day={day}
-              onDayChange={setDay}
-              refreshKey={refresh}
-              onChanged={changed}
-            />
+            <>
+              <ResourceError error={facilities.error} retry={facilities.reload} />
+              {facilities.loading && !facilities.data ? (
+                <Loading />
+              ) : facilities.data?.length ? (
+                <SlotsPanel
+                  facilities={facilities.data}
+                  day={day}
+                  onDayChange={setDay}
+                  refreshKey={refresh}
+                  onChanged={changed}
+                />
+              ) : (
+                <div className="panel">
+                  <Empty title="No hay instalaciones disponibles">
+                    Tu comunidad todavía no ha activado ningún espacio reservable.
+                  </Empty>
+                </div>
+              )}
+            </>
           )}
           {activeView === "reservations" && (
             <MyReservationsPanel refreshKey={refresh} onChanged={changed} />

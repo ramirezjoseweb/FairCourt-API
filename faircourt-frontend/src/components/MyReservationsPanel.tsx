@@ -101,7 +101,7 @@ export function MyReservationsPanel({
         </div>
         <div className="reservation-info">
           <div className="inline-wrap">
-            <h3>Pista comunitaria</h3>
+            <h3>{row.facility.name}</h3>
             <Badge tone={tone(status)}>{label(status)}</Badge>
           </div>
           <p className="reservation-time">
@@ -216,7 +216,9 @@ export function MyReservationsPanel({
           <div className="dialog-emblem">
             <Icon name="calendar" />
           </div>
-          <p>Vas a cancelar tu reserva de la pista comunitaria.</p>
+          <p>
+            Vas a cancelar tu reserva de <strong>{cancel.facility.name}</strong>.
+          </p>
           <div className="dialog-summary">
             <strong>{dateTime(cancel.start_at)}</strong>
             <span>Hasta {dateTime(cancel.end_at)}</span>

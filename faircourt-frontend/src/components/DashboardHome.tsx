@@ -14,13 +14,13 @@ export function DashboardHome({
       <PageHeader
         eyebrow="TU COMUNIDAD, EN MOVIMIENTO"
         title="Qué bien tenerte de vuelta."
-        description="Todo listo para disfrutar de tu próximo momento en la pista."
+        description="Todo listo para disfrutar de los espacios de tu comunidad."
       />
       <section className="home-hero">
         <div className="hero-copy">
           <span className="hero-kicker">
             <span className="status-dot" />
-            TU PISTA COMUNITARIA
+            TUS INSTALACIONES COMUNITARIAS
           </span>
           <h2>
             Haz sitio
@@ -28,8 +28,8 @@ export function DashboardHome({
             para jugar.
           </h2>
           <p>
-            Consulta los horarios, encuentra tu momento
-            <br className="desktop-only" /> y nos vemos en la pista.
+            Pádel, tenis y mucho más. Encuentra tu momento
+            <br className="desktop-only" /> y disfruta de tu comunidad.
           </p>
           <Button className="button-lime" onClick={() => onNavigate("slots")}>
             Encontrar un horario <Icon name="arrow" />
@@ -86,8 +86,8 @@ export function DashboardHome({
             </strong>
             <span className="small muted">
               {me.strikes
-                ? "Consulta el detalle en Auditoría."
-                : "Así da gusto compartir pista."}
+              ? "Consulta el detalle en Auditoría."
+                : "Así da gusto compartir espacios."}
             </span>
           </article>
           <article className="stat-card">

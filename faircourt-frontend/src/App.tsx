@@ -57,14 +57,14 @@ export default function App() {
       <section className="auth-story">
         <Brand />
         <div className="auth-story-copy">
-          <p className="eyebrow">TU COMUNIDAD. TU PISTA.</p>
+          <p className="eyebrow">TU COMUNIDAD. TUS ESPACIOS.</p>
           <h1>
             Más juego.
             <br />
             Mejor comunidad.
           </h1>
           <p>
-            Un espacio compartido.
+            Todos tus espacios compartidos.
             <br />
             Las mismas oportunidades para todos.
           </p>
@@ -98,7 +98,7 @@ export default function App() {
           </h2>
           <p className="muted">
             {step === "request"
-              ? "Accede con tu vivienda y disfruta de la pista de tu comunidad."
+              ? "Accede con tu vivienda y disfruta de las instalaciones de tu comunidad."
               : `Introduce el código de acceso generado para ${email}.`}
           </p>
           {!isOnline && (

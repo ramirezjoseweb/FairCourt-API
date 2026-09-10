@@ -2,11 +2,48 @@ import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import type { MeResponse } from "../src/api/me";
 import type { Slot, Reservation } from "../src/api/reservations";
+import type { Facility } from "../src/api/facilities";
 import type { UnlockProposal } from "../src/api/unlock";
 
 export const day = "2026-09-07";
 export const stamp = (hour: number, date = day) =>
   `${date}T${String(hour).padStart(2, "0")}:00:00+02:00`;
+const makeFacility = (
+  id: number,
+  slug: string,
+  name: string,
+  category: string,
+  priority: number,
+): Facility => ({
+  id,
+  slug,
+  name,
+  category,
+  description: `${name} comunitario`,
+  icon: category === "Deporte" ? "court" : "calendar",
+  priority,
+  is_reservable: true,
+  opening_hour: 9,
+  closing_hour: 22,
+  slot_duration_minutes: 60,
+});
+export const facilities: Facility[] = [
+  makeFacility(1, "padel", "Pádel", "Deporte", 10),
+  makeFacility(2, "tenis", "Tenis", "Deporte", 20),
+  makeFacility(3, "pergola-1", "Pérgola 1", "Encuentros", 30),
+  makeFacility(4, "pergola-2", "Pérgola 2", "Encuentros", 31),
+  makeFacility(5, "pergola-3", "Pérgola 3", "Encuentros", 32),
+  makeFacility(6, "pergola-4", "Pérgola 4", "Encuentros", 33),
+  makeFacility(7, "petanca", "Petanca", "Deporte", 40),
+  makeFacility(8, "polideportiva", "Fútbol / baloncesto / polideportiva", "Deporte", 41),
+  makeFacility(9, "barra-bar", "Barra de bar", "Encuentros", 50),
+  makeFacility(10, "mesa-1", "Mesa 1", "Mesas", 60),
+  makeFacility(11, "mesa-2", "Mesa 2", "Mesas", 61),
+  makeFacility(12, "mesa-3", "Mesa 3", "Mesas", 62),
+  makeFacility(13, "mesa-4", "Mesa 4", "Mesas", 63),
+  makeFacility(14, "sala-multiusos", "Sala multiusos · Tenis de mesa", "Interior", 70),
+  makeFacility(15, "sauna", "Sauna", "Bienestar", 80),
+];
 export function slotsFor(date: string): Slot[] {
   return [9, 10, 11, 12, 16, 17, 18, 19]
     .map((hour, index) => ({
@@ -40,6 +77,8 @@ export const initialReservations: Reservation[] = [
   {
     id: 11,
     household_id: 1,
+    facility_id: 1,
+    facility: facilities[0],
     start_at: stamp(11),
     end_at: stamp(12),
     status: "ACTIVE",
@@ -49,6 +88,8 @@ export const initialReservations: Reservation[] = [
   {
     id: 12,
     household_id: 1,
+    facility_id: 2,
+    facility: facilities[1],
     start_at: stamp(10, "2026-09-04"),
     end_at: stamp(11, "2026-09-04"),
     status: "ACTIVE",
@@ -58,6 +99,8 @@ export const initialReservations: Reservation[] = [
   {
     id: 13,
     household_id: 1,
+    facility_id: 1,
+    facility: facilities[0],
     start_at: stamp(16, "2026-09-02"),
     end_at: stamp(17, "2026-09-02"),
     status: "NO_SHOW",
@@ -67,6 +110,8 @@ export const initialReservations: Reservation[] = [
   {
     id: 14,
     household_id: 1,
+    facility_id: 3,
+    facility: facilities[2],
     start_at: stamp(18, "2026-09-03"),
     end_at: stamp(19, "2026-09-03"),
     status: "CANCELLED",
@@ -244,13 +289,15 @@ export async function setup(
         expires_at: stamp(23),
       };
     else if (path === "/me") data = state.me;
+    else if (path === "/facilities") data = facilities;
     else if (path === "/reservations/slots") {
       const date = url.searchParams.get("day")!;
       if (!state.slots.has(date)) state.slots.set(date, slotsFor(date));
       data = state.slots.get(date);
     } else if (path === "/reservations/me") data = state.reservations;
     else if (path === "/reservations" || path === "/reservations/waitlist") {
-      const start = request.postDataJSON().start_at;
+      const body = request.postDataJSON();
+      const start = body.start_at;
       const date = start.slice(0, 10);
       const slot = state.slots.get(date)?.find((row) => row.start_at === start);
       if (slot) {
@@ -267,7 +314,17 @@ export async function setup(
           slot.can_join_waitlist = false;
         }
       }
-      data = { id: 22, start_at: start, status: "ACTIVE" };
+      const selectedFacility = facilities.find((item) => item.id === body.facility_id)!;
+      data = {
+        id: 22,
+        household_id: 1,
+        facility_id: selectedFacility.id,
+        facility: selectedFacility,
+        start_at: start,
+        end_at: stamp(new Date(start).getHours() + 1, date),
+        created_at: start,
+        status: "ACTIVE",
+      };
     } else if (path.endsWith("/cancel")) {
       const row = state.reservations.find(
         (row) => row.id === Number(path.split("/")[2]),

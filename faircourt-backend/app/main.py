@@ -22,6 +22,7 @@ from app.scheduler import start_scheduler, shutdown_scheduler
 from app.routers.audit import router as audit_router
 from app.routers.unlock import router as unlock_router
 from app.routers.notifications import router as notifications_router
+from app.routers.facilities import router as facilities_router
 
 
 from .db import engine
@@ -33,8 +34,8 @@ from . import models
 
 app = FastAPI(
     title="FairCourt API",
-    description="API para la gestión de reservas de pistas de pádel.",
-    version="0.1.0",
+    description="API para la gestión justa de instalaciones comunitarias.",
+    version="0.2.0",
 )
 
 app.add_middleware(
@@ -56,6 +57,7 @@ app.include_router(reservations_router)
 app.include_router(audit_router)
 app.include_router(unlock_router)
 app.include_router(notifications_router)
+app.include_router(facilities_router)
 
 @app.on_event("startup") 
 def on_startup(): 
@@ -84,7 +86,7 @@ def health():
 Para ejecutar la aplicación en entorno de desarrollo:
 
 1. Activar el entorno virtual:
-   .\.venv\Scripts\activate
+   .\\.venv\\Scripts\\activate
 
 2. Lanzar el servidor:
    uvicorn app.main:app --reload

@@ -48,7 +48,9 @@ def process_no_shows_job() -> None:
                 apply_no_show_penalty(db, reservation, now)
                 no_show_count += 1
 
-                promoted = try_promote_waitlist_for_slot(db, reservation.start_at)
+                promoted = try_promote_waitlist_for_slot(
+                    db, reservation.facility_id, reservation.start_at
+                )
 
                 if promoted:
                     promoted_count += 1
