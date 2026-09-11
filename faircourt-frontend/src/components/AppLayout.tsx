@@ -1,10 +1,12 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import type { MeResponse } from "../api/me";
+import type { Notification } from "../api/notifications";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { Brand, Button, Dialog, Icon } from "./ui";
 import type { IconName } from "./ui";
 import { OfflineBanner } from "./OfflineBanner";
+import { NotificationPopover } from "./NotificationPopover";
 export type AppView =
   "home" | "slots" | "reservations" | "notifications" | "audit" | "unlock";
 const navigation: { id: AppView; label: string; icon: IconName }[] = [
@@ -22,6 +24,7 @@ export function AppLayout({
   children,
   me,
   unreadCount,
+  notifications,
 }: {
   activeView: AppView;
   onChangeView: (view: AppView) => void;
@@ -29,6 +32,11 @@ export function AppLayout({
   children: ReactNode;
   me?: MeResponse;
   unreadCount: number;
+  notifications: {
+    data?: Notification[];
+    loading: boolean;
+    error?: string;
+  };
 }) {
   const online = useOnlineStatus();
   const [more, setMore] = useState(false);
@@ -104,16 +112,13 @@ export function AppLayout({
               <span className="status-dot" />
               {online ? "En línea" : "Sin conexión"}
             </span>
-            <button
-              className="notification-button"
-              aria-label={`Notificaciones, ${unreadCount} sin leer`}
-              onClick={() => navigate("notifications")}
-            >
-              <Icon name="bell" />
-              {unreadCount > 0 && (
-                <span className="notification-dot">{unreadCount}</span>
-              )}
-            </button>
+            <NotificationPopover
+              notifications={notifications.data}
+              loading={notifications.loading}
+              error={notifications.error}
+              unreadCount={unreadCount}
+              onViewAll={() => navigate("notifications")}
+            />
             <span className="top-avatar">{me?.household_code || "FC"}</span>
           </div>
         </header>
