@@ -3,7 +3,7 @@ import { markNotificationAsRead } from "../api/notifications";
 import { saveToCache } from "../utils/offlineCache";
 import { useAction } from "../hooks/useAction";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-import { dateTime, label, tone } from "../utils/format";
+import { dateTime, label } from "../utils/format";
 import {
   Badge,
   Button,
@@ -16,6 +16,7 @@ import {
   ResourceError,
 } from "./ui";
 import { CacheStamp } from "./CacheStamp";
+import { NotificationEventIcon } from "./NotificationEventIcon";
 export function NotificationsPanel({
   resource,
   onChanged,
@@ -75,17 +76,7 @@ export function NotificationsPanel({
               className={`notification-row ${row.is_read ? "" : "unread"}`}
               aria-label={`Notificación #${row.id}`}
             >
-              <span className={`event-icon event-${tone(row.type)}`}>
-                <Icon
-                  name={
-                    row.type.includes("WAITLIST")
-                      ? "users"
-                      : row.type.includes("SUSPENDED") || row.type === "NO_SHOW"
-                        ? "alert"
-                        : "bell"
-                  }
-                />
-              </span>
+              <NotificationEventIcon type={row.type} />
               <div className="notification-content">
                 <div className="inline-wrap">
                   <h3>{label(row.type)}</h3>

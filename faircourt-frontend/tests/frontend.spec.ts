@@ -366,6 +366,37 @@ test("checkin: signed link, expiry, copying, clipboard failure and opening", asy
   );
   await popup.close();
 });
+test("notifications: topbar preview opens without replacing the current page", async ({
+  page,
+}) => {
+  await setup(page);
+  await start(page);
+  const trigger = page.getByRole("button", {
+    name: "Notificaciones, 2 sin leer",
+    exact: true,
+  });
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  const preview = page.getByRole("dialog", { name: "Notificaciones" });
+  await expect(preview).toBeVisible();
+  await expect(preview.getByRole("article")).toHaveCount(3);
+  await expect(
+    page.getByRole("heading", { name: "Qué bien tenerte de vuelta." }),
+  ).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(preview).toBeHidden();
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await preview
+    .getByRole("button", { name: "Ver todas las notificaciones" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Tus notificaciones." }),
+  ).toBeVisible();
+  await expect(preview).toBeHidden();
+});
 test("notifications: read state, cache and global counter update", async ({
   page,
 }) => {

@@ -76,6 +76,12 @@ como el código de vivienda proponente, motivo de la propuesta, estado de la
 misma (aprobada, expirada, rechazada) y si la propuesta es tuya o no.
 
 ## Notificaciones
+La campana de la esquina superior derecha abre una vista rápida con las
+notificaciones más recientes sin abandonar la pantalla actual. Desde ese panel
+se puede acceder a la bandeja completa mediante **Ver todas las notificaciones**.
+El botón **Notificaciones** de la navegación lateral continúa abriendo
+directamente la página completa.
+
 En la página de notificaciones al igual que en la de auditoría es de carácter 
 informativo. Aunque incluye una función no tan crítica pero válida que es la de 
 marcar como leído las notificaciones con el objetivo de no acumularse. Podemos 
