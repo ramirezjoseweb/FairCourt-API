@@ -54,6 +54,18 @@ for (const width of [375, 1440]) {
       ).toHaveCount(0);
       await check(name);
     }
+    await navigate(page, "Inicio");
+    await page
+      .getByRole("button", {
+        name: "Notificaciones, 2 sin leer",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("dialog", { name: "Notificaciones" }),
+    ).toBeVisible();
+    await check("Vista previa de notificaciones");
+    await page.keyboard.press("Escape");
     await navigate(page, "Mis reservas");
     await page
       .getByRole("article", { name: "Reserva #11", exact: true })

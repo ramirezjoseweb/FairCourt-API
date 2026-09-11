@@ -43,6 +43,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
       onLogout={onLogout}
       me={me.data}
       unreadCount={unread}
+      notifications={notifications}
     >
       {reconnected && online && !me.loading && !me.error && (
         <Notice>Conexión recuperada. Información actualizada.</Notice>

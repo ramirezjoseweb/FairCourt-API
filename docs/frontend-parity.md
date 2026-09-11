@@ -16,7 +16,7 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 | Reservas activas y pasadas; estado calculado y persistido, incluidos estados desconocidos | Próximas reservas e historial; detalles desplegables | reservations |
 | Cancelación con confirmación | Diálogo integrado con control y restitución del foco | cancellation; visual |
 | Generar, abrir y copiar enlace de asistencia; caducidad | Diálogo de asistencia | checkin |
-| Avisos completos, tipo, fecha, leídos/pendientes, marcado individual y contador | Notificaciones y contador de navegación | notifications |
+| Avisos completos, tipo, fecha, leídos/pendientes, marcado individual y contador | Vista rápida en la campana; página completa desde la navegación o el acceso “Ver todas” | notifications |
 | Eventos, códigos, identificadores y todos los metadatos | Auditoría y detalles, incluidos eventos desconocidos y metadatos sin formato válido | audit |
 | Crear propuesta con motivo, consultar vivienda, estados, fechas y resolución | Desbloqueos | proposals |
 | Votar a favor/en contra; impedir voto propio o en propuesta cerrada | Propuestas | voting |
