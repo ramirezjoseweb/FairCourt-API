@@ -66,6 +66,44 @@ test("auth: OTP payloads, errors, back, persistence and logout", async ({
     await page.evaluate(() => localStorage.getItem("faircourt_token")),
   ).toBeNull();
 });
+test("appearance: system theme, manual toggle and persistence", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await setup(page, { authenticated: false });
+  await page.goto("/");
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const lightToggle = page.getByRole("button", {
+    name: "Activar modo claro",
+  });
+  await expect(lightToggle).toBeVisible();
+  await lightToggle.click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(
+    await page.evaluate(() => localStorage.getItem("faircourt_theme")),
+  ).toBe("light");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+    "content",
+    "#173f35",
+  );
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.evaluate(() =>
+    localStorage.setItem("faircourt_token", "test-token"),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Qué bien tenerte de vuelta." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Activar modo oscuro" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+    "content",
+    "#071a16",
+  );
+});
 test("home: household information and technical details retained", async ({
   page,
 }) => {
@@ -112,7 +150,8 @@ test("agenda: daily dates, labels, eligibility and manual refresh", async ({
     .poll(
       () =>
         state.requests.filter(
-          (row) => row.path === "/reservations/slots?day=2026-09-09&facility_id=1",
+          (row) =>
+            row.path === "/reservations/slots?day=2026-09-09&facility_id=1",
         ).length,
     )
     .toBeGreaterThan(0);
@@ -122,7 +161,8 @@ test("agenda: daily dates, labels, eligibility and manual refresh", async ({
     .poll(
       () =>
         state.requests.filter(
-          (row) => row.path === "/reservations/slots?day=2026-09-09&facility_id=1",
+          (row) =>
+            row.path === "/reservations/slots?day=2026-09-09&facility_id=1",
         ).length,
     )
     .toBeGreaterThan(1);

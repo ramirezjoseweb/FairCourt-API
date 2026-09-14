@@ -8,9 +8,11 @@ import {
   Feedback,
   Icon,
   Notice,
+  ThemeToggle,
 } from "./components/ui";
 import { useAction } from "./hooks/useAction";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { useTheme } from "./hooks/useTheme";
 import { retryConnection } from "./utils/networkStatus";
 
 export default function App() {
@@ -24,6 +26,7 @@ export default function App() {
   const isOnline = useOnlineStatus();
   const action = useAction();
   const [deliveryMessage, setDeliveryMessage] = useState("");
+  const { theme, toggleTheme } = useTheme();
   function logout() {
     localStorage.removeItem("faircourt_token");
     setToken(null);
@@ -31,7 +34,10 @@ export default function App() {
     setOtp("");
     setDeliveryMessage("");
   }
-  if (token) return <Dashboard onLogout={logout} />;
+  if (token)
+    return (
+      <Dashboard onLogout={logout} theme={theme} onToggleTheme={toggleTheme} />
+    );
   async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     await action.run(async () => {
@@ -77,6 +83,11 @@ export default function App() {
         </div>
       </section>
       <section className="auth-access">
+        <ThemeToggle
+          theme={theme}
+          onToggle={toggleTheme}
+          className="auth-theme-toggle"
+        />
         <div className="auth-mobile-brand">
           <Brand />
         </div>

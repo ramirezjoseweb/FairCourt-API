@@ -18,6 +18,12 @@ vivienda asociado.
 4. Acceder a la página de inicio FairCourt. 
 No se podrá acceder si el código de vivienda no existe o si el correo introducido es diferente al asociado previamente a la vivienda.
 
+## Apariencia clara y oscura
+FairCourt utiliza inicialmente el tema claro u oscuro configurado en el
+dispositivo. El botón con forma de luna o sol permite cambiarlo tanto en la
+pantalla de acceso como, una vez dentro, en la barra superior. La elección se
+guarda en el navegador y se mantiene al recargar o volver a abrir la aplicación.
+
 ## Página de inicio 
 Una vez autenticados, FairCourt nos mostrará automáticamente la página 
 de inicio principal donde se muestra información resumida sobre la vivienda. 

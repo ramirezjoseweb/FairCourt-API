@@ -15,7 +15,15 @@ import { AuditPanel } from "./AuditPanel";
 import { UnlockPanel } from "./UnlockPanel";
 import { Empty, Loading, Notice, ResourceError } from "./ui";
 import { localDay } from "../utils/format";
-export function Dashboard({ onLogout }: { onLogout: () => void }) {
+export function Dashboard({
+  onLogout,
+  theme,
+  onToggleTheme,
+}: {
+  onLogout: () => void;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
+}) {
   const [activeView, setActiveView] = useState<AppView>("home");
   const [day, setDay] = useState(localDay);
   const [refresh, setRefresh] = useState(0);
@@ -41,6 +49,8 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
       activeView={activeView}
       onChangeView={setActiveView}
       onLogout={onLogout}
+      theme={theme}
+      onToggleTheme={onToggleTheme}
       me={me.data}
       unreadCount={unread}
       notifications={notifications}
@@ -57,7 +67,10 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
           {activeView === "slots" && (
             <>
-              <ResourceError error={facilities.error} retry={facilities.reload} />
+              <ResourceError
+                error={facilities.error}
+                retry={facilities.reload}
+              />
               {facilities.loading && !facilities.data ? (
                 <Loading />
               ) : facilities.data?.length ? (
@@ -71,7 +84,8 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               ) : (
                 <div className="panel">
                   <Empty title="No hay instalaciones disponibles">
-                    Tu comunidad todavía no ha activado ningún espacio reservable.
+                    Tu comunidad todavía no ha activado ningún espacio
+                    reservable.
                   </Empty>
                 </div>
               )}
