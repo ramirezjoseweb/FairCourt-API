@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { MeResponse } from "../api/me";
 import type { Notification } from "../api/notifications";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-import { Brand, Button, Dialog, Icon } from "./ui";
+import { Brand, Button, Dialog, Icon, ThemeToggle } from "./ui";
 import type { IconName } from "./ui";
 import { OfflineBanner } from "./OfflineBanner";
 import { NotificationPopover } from "./NotificationPopover";
@@ -25,6 +25,8 @@ export function AppLayout({
   me,
   unreadCount,
   notifications,
+  theme,
+  onToggleTheme,
 }: {
   activeView: AppView;
   onChangeView: (view: AppView) => void;
@@ -37,6 +39,8 @@ export function AppLayout({
     loading: boolean;
     error?: string;
   };
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
 }) {
   const online = useOnlineStatus();
   const [more, setMore] = useState(false);
@@ -112,6 +116,7 @@ export function AppLayout({
               <span className="status-dot" />
               {online ? "En línea" : "Sin conexión"}
             </span>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
             <NotificationPopover
               notifications={notifications.data}
               loading={notifications.loading}

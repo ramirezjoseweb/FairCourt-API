@@ -9,6 +9,22 @@
       name="description"
       content="Tu comunidad, tu pista. Reserva, comparte y disfruta del deporte con FairCourt."
     />
+    <script>
+      (() => {
+        const saved = localStorage.getItem("faircourt_theme");
+        const theme =
+          saved === "light" || saved === "dark"
+            ? saved
+            : matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute("content", theme === "dark" ? "#071a16" : "#173f35");
+      })();
+    </script>
     <title>FairCourt · Tu comunidad en juego</title>
   </head>
   <body>

@@ -24,14 +24,15 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 | Lectura cacheada, bloqueo de escrituras y reconexión | Todas las secciones; fecha seleccionada conservada | offline; connectivity; pwa |
 | PWA, recursos locales y apertura sin conexión | Manifiesto, iconos e interfaz de producción | pwa |
 | Navegación de escritorio y móvil con acceso a todas las secciones | Barra lateral y navegación inferior con menú Más | visual; accessibility |
+| Tema claro u oscuro, preferencia inicial del sistema y elección persistente | Selector de apariencia en acceso y barra superior | appearance; accessibility |
 | Operación por teclado y contenido adaptable | Etiquetas, foco visible, enlace de salto, diálogos y movimiento reducido | accessibility; visual; responsive |
 
 ## Resultado de las comprobaciones
 
-- **26 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
+- **31 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
 - **Compilación y análisis estático correctos**, sin desactivar globalmente las reglas. Los archivos generados y los informes temporales quedan excluidos del análisis y de Git.
 - Nueve vistas capturadas a **375, 768 y 1440 píxeles**: acceso, OTP, inicio, disponibilidad, reservas, notificaciones, auditoría, desbloqueos y diálogo. Se comprueba ausencia de desbordamiento horizontal, contenido largo y navegación de teclado.
-- Auditoría automatizada de contraste y semántica en móvil y escritorio, más comprobaciones de foco y movimiento reducido.
+- Auditoría automatizada de contraste y semántica en los temas claro y oscuro, en móvil y escritorio, más comprobaciones de foco y movimiento reducido.
 - Comprobaciones de errores del servidor, pulsaciones repetidas, respuestas tardías al cambiar rápidamente de día, estados desconocidos y recuperación de la carga inicial.
 - Consulta sin conexión con caché, consulta sin datos guardados, bloqueo de escrituras, API inaccesible aunque el navegador indique conexión y recuperación al reconectar.
 - PWA de producción: manifiesto, dimensiones reales de iconos, requisitos de instalación del navegador y recarga sin red mediante el service worker, con caché HTTP desactivada.
