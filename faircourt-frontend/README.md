@@ -30,9 +30,9 @@ $env:PW_CHANNEL = "chrome"
 npm run test:e2e
 ```
 
-El conjunto incluye 26 escenarios de acceso, reservas, listas de espera, asistencia, avisos, auditoría, votaciones, red, accesibilidad y diseño adaptable. Las respuestas de la API están controladas dentro de los tests; no se crean reservas ni votos en la base de datos real.
+El conjunto incluye 32 escenarios de acceso, reservas, listas de espera, asistencia, avisos, auditoría, contacto, red, accesibilidad y diseño adaptable. Las respuestas de la API están controladas dentro de los tests; no se crean reservas ni votos en la base de datos real.
 
-Las capturas de cada ejecución se guardan dentro de test-results. Tras una batería completa correcta, ejecuta npm run test:e2e:export para copiar las 27 capturas verificadas a ../docs/images/frontend/current. El informe de Playwright se puede abrir con npm run test:e2e:report. Los perfiles de navegador, trazas e informes temporales están excluidos de Git.
+Las capturas de cada ejecución se guardan dentro de test-results. Tras una batería completa correcta, ejecuta npm run test:e2e:export para copiar las 30 capturas verificadas a ../docs/images/frontend/current. El informe de Playwright se puede abrir con npm run test:e2e:report. Los perfiles de navegador, trazas e informes temporales están excluidos de Git.
 
 ## Interfaz y datos
 
@@ -42,7 +42,7 @@ Las capturas de cada ejecución se guardan dentro de test-results. Tras una bate
 - Contratos HTTP y almacenamiento de sesión: src/api.
 - Estilos, paleta, composición adaptable y movimiento reducido: src/index.css.
 
-Las seis secciones originales siguen disponibles. La navegación es lateral en ordenador e inferior en móvil. Los detalles técnicos útiles de reservas, vivienda y auditoría siguen accesibles mediante desplegables. El token de sesión ya no se expone en pantalla.
+Las seis secciones originales y el apartado de contacto siguen disponibles. La navegación es lateral en ordenador e inferior en móvil. Los detalles técnicos útiles de reservas, vivienda y auditoría siguen accesibles mediante desplegables. El token de sesión ya no se expone en pantalla.
 
 ## Sin conexión y PWA
 

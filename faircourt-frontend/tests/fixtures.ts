@@ -381,7 +381,10 @@ export async function setup(
 }
 export async function navigate(page: Page, name: string) {
   const mobile = (page.viewportSize()?.width ?? 1440) < 900;
-  if (mobile && ["Notificaciones", "Auditoría", "Desbloqueos"].includes(name)) {
+  if (
+    mobile &&
+    ["Notificaciones", "Auditoría", "Desbloqueos", "Contacto"].includes(name)
+  ) {
     await page
       .getByRole("navigation", { name: "Navegación móvil" })
       .getByRole("button", { name: "Más", exact: true })

@@ -51,6 +51,7 @@ for (const theme of ["light", "dark"] as const) {
         "Notificaciones",
         "Auditoría",
         "Desbloqueos",
+        "Contacto",
       ]) {
         await navigate(page, name);
         await expect(

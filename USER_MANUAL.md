@@ -107,6 +107,13 @@ conflictos y solapamientos en las reservas.
 Cuando el sistema vuelva a estar online, se sincronizarán de nuevo los 
 datos.
 
+## Contacto
+
+La sección **Contacto** permite enviar una consulta al equipo de la comunidad.
+El formulario solicita nombre, e-mail, número de teléfono y el motivo de la
+consulta. El e-mail asociado a la sesión aparece rellenado inicialmente y puede
+modificarse antes del envío.
+
 ## Cierre de sesión 
 Por último, en la parte superior derecha de FairCourt, se podrá observar 
 un botón “Cerrar sesión”. Al hacerlo se elimina la sesión activa y será necesario 
