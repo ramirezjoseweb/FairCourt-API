@@ -1761,6 +1761,92 @@ details {
 .proposal-form textarea {
   font-size: 13px;
 }
+.contact-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.75fr);
+  gap: 20px;
+  align-items: start;
+}
+.contact-panel {
+  padding: 30px;
+}
+.contact-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.contact-heading .empty-icon {
+  flex-shrink: 0;
+}
+.contact-heading h2 {
+  margin-bottom: 5px;
+}
+.contact-heading p {
+  font-size: 12px;
+}
+.contact-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.contact-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.contact-field-full {
+  grid-column: 1 / -1;
+}
+.contact-field input,
+.contact-field textarea {
+  font-size: 13px;
+}
+.contact-field .field-hint {
+  margin-top: -2px;
+}
+.contact-submit {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 2px;
+}
+.contact-note {
+  overflow: hidden;
+  border-radius: var(--radius);
+  padding: 30px;
+  background: var(--green);
+  color: #fff;
+}
+.contact-note .eyebrow {
+  color: #cce29a;
+}
+.contact-note h2 {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+  margin-bottom: 12px;
+}
+.contact-note > p:not(.eyebrow) {
+  color: #c5d6cd;
+  font-size: 13px;
+}
+.contact-note-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid #ffffff26;
+  color: #dce8d0;
+  font-size: 12px;
+}
+.contact-note-detail span {
+  display: grid;
+  gap: 4px;
+}
+.contact-note-detail strong {
+  color: #fff;
+}
 .proposals-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3222,6 +3308,41 @@ details {
 .offline-banner > .button {
   font-size: 12px;
   flex-shrink: 0;
+}
+
+@media (max-width: 899px) {
+  .contact-layout {
+    grid-template-columns: 1fr;
+  }
+  .contact-note {
+    order: -1;
+  }
+}
+
+@media (max-width: 599px) {
+  .contact-panel,
+  .contact-note {
+    padding: 21px;
+  }
+  .contact-heading {
+    align-items: flex-start;
+  }
+  .contact-form {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .contact-field,
+  .contact-field-full,
+  .contact-submit {
+    grid-column: 1;
+  }
+  .contact-submit {
+    width: 100%;
+  }
+  .contact-field input,
+  .contact-field textarea {
+    font-size: 16px;
+  }
 }
 
 /* Dark mode keeps FairCourt's green identity while reversing the surface hierarchy. */

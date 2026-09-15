@@ -8,7 +8,13 @@ import type { IconName } from "./ui";
 import { OfflineBanner } from "./OfflineBanner";
 import { NotificationPopover } from "./NotificationPopover";
 export type AppView =
-  "home" | "slots" | "reservations" | "notifications" | "audit" | "unlock";
+  | "home"
+  | "slots"
+  | "reservations"
+  | "notifications"
+  | "audit"
+  | "unlock"
+  | "contact";
 const navigation: { id: AppView; label: string; icon: IconName }[] = [
   { id: "home", label: "Inicio", icon: "home" },
   { id: "slots", label: "Disponibilidad", icon: "calendar" },
@@ -16,6 +22,7 @@ const navigation: { id: AppView; label: string; icon: IconName }[] = [
   { id: "notifications", label: "Notificaciones", icon: "bell" },
   { id: "audit", label: "Auditoría", icon: "history" },
   { id: "unlock", label: "Desbloqueos", icon: "unlock" },
+  { id: "contact", label: "Contacto", icon: "mail" },
 ];
 export function AppLayout({
   activeView,

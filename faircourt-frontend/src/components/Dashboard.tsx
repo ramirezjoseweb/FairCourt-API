@@ -13,6 +13,7 @@ import { MyReservationsPanel } from "./MyReservationsPanel";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { AuditPanel } from "./AuditPanel";
 import { UnlockPanel } from "./UnlockPanel";
+import { ContactPanel } from "./ContactPanel";
 import { Empty, Loading, Notice, ResourceError } from "./ui";
 import { localDay } from "../utils/format";
 export function Dashboard({
@@ -105,6 +106,7 @@ export function Dashboard({
               onChanged={changed}
             />
           )}
+          {activeView === "contact" && <ContactPanel me={me.data} />}
         </>
       )}
     </AppLayout>

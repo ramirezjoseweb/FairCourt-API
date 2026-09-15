@@ -23,9 +23,9 @@ const captures = fs
       .filter((name) => name.endsWith(".png"))
       .map((name) => ({ name, source: path.join(directory, name) }));
   });
-if (captures.length !== 27)
+if (captures.length !== 30)
   throw new Error(
-    "Se esperaban las 27 capturas de la batería completa; encontradas: " +
+    "Se esperaban las 30 capturas de la batería completa; encontradas: " +
       captures.length,
   );
 const output = path.resolve(root, "../docs/images/frontend/current");
@@ -33,5 +33,5 @@ fs.mkdirSync(output, { recursive: true });
 for (const capture of captures)
   fs.copyFileSync(capture.source, path.join(output, capture.name));
 console.log(
-  "Exportadas 27 capturas verificadas a docs/images/frontend/current.",
+  "Exportadas 30 capturas verificadas a docs/images/frontend/current.",
 );

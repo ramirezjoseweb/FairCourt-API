@@ -20,6 +20,7 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 | Eventos, códigos, identificadores y todos los metadatos | Auditoría y detalles, incluidos eventos desconocidos y metadatos sin formato válido | audit |
 | Crear propuesta con motivo, consultar vivienda, estados, fechas y resolución | Desbloqueos | proposals |
 | Votar a favor/en contra; impedir voto propio o en propuesta cerrada | Propuestas | voting |
+| Enviar nombre, e-mail, teléfono y motivo de una consulta | Contacto | contact |
 | Cargas, vacíos, errores del servidor y reintento | Estados compartidos sin desmontar la página durante las actualizaciones | errors; agenda; booking; cancellation; proposals |
 | Lectura cacheada, bloqueo de escrituras y reconexión | Todas las secciones; fecha seleccionada conservada | offline; connectivity; pwa |
 | PWA, recursos locales y apertura sin conexión | Manifiesto, iconos e interfaz de producción | pwa |
@@ -29,7 +30,7 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 
 ## Resultado de las comprobaciones
 
-- **31 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
+- **32 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
 - **Compilación y análisis estático correctos**, sin desactivar globalmente las reglas. Los archivos generados y los informes temporales quedan excluidos del análisis y de Git.
 - Nueve vistas capturadas a **375, 768 y 1440 píxeles**: acceso, OTP, inicio, disponibilidad, reservas, notificaciones, auditoría, desbloqueos y diálogo. Se comprueba ausencia de desbordamiento horizontal, contenido largo y navegación de teclado.
 - Auditoría automatizada de contraste y semántica en los temas claro y oscuro, en móvil y escritorio, más comprobaciones de foco y movimiento reducido.
@@ -69,6 +70,7 @@ Las capturas originales se conservaron antes de reconstruir los componentes. Las
 | Notificaciones | [Ver captura](images/frontend/current/after-notifications-375.png) | [Ver captura](images/frontend/current/after-notifications-768.png) | [Ver captura](images/frontend/current/after-notifications-1440.png) |
 | Auditoría | [Ver captura](images/frontend/current/after-audit-375.png) | [Ver captura](images/frontend/current/after-audit-768.png) | [Ver captura](images/frontend/current/after-audit-1440.png) |
 | Desbloqueos | [Ver captura](images/frontend/current/after-unlock-375.png) | [Ver captura](images/frontend/current/after-unlock-768.png) | [Ver captura](images/frontend/current/after-unlock-1440.png) |
+| Contacto | [Ver captura](images/frontend/current/after-contact-375.png) | [Ver captura](images/frontend/current/after-contact-768.png) | [Ver captura](images/frontend/current/after-contact-1440.png) |
 | Confirmación de cancelación | [Ver captura](images/frontend/current/after-dialog-375.png) | [Ver captura](images/frontend/current/after-dialog-768.png) | [Ver captura](images/frontend/current/after-dialog-1440.png) |
 
 ## Repetir la validación
@@ -82,4 +84,4 @@ npm run test:e2e -- --workers=1
 npm run test:e2e:export
 ```
 
-La exportación exige una ejecución correcta y las 27 capturas esperadas. El [README del frontend](../faircourt-frontend/README.md) documenta el inicio local, la selección de navegador y el comportamiento de la caché.
+La exportación exige una ejecución correcta y las 30 capturas esperadas. El [README del frontend](../faircourt-frontend/README.md) documenta el inicio local, la selección de navegador y el comportamiento de la caché.

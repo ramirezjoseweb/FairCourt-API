@@ -571,6 +571,27 @@ test("voting: YES and NO; own, closed and unknown proposals are disabled", async
       .map((row) => row.body),
   ).toEqual([{ vote: "YES" }, { vote: "NO" }]);
 });
+
+test("contact: validates, prefills the email and confirms submission", async ({
+  page,
+}) => {
+  await setup(page);
+  await start(page);
+  await navigate(page, "Contacto");
+  await expect(page.getByLabel("E-mail")).toHaveValue("vecino@faircourt.es");
+  await page.getByLabel("Nombre").fill("Ana García");
+  await page.getByLabel("N.º de teléfono").fill("600 123 123");
+  await page.getByLabel("Motivo").fill("Tengo una duda sobre mi reserva.");
+  await page.getByRole("button", { name: "Enviar consulta" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Tu consulta se ha enviado" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Nombre")).toHaveValue("");
+  await expect(page.getByLabel("N.º de teléfono")).toHaveValue("");
+  await expect(page.getByLabel("Motivo")).toHaveValue("");
+  await expect(page.getByLabel("E-mail")).toHaveValue("vecino@faircourt.es");
+});
+
 test("errors: initial load can be retried without logging out", async ({
   page,
 }) => {
@@ -711,6 +732,7 @@ for (const width of [375, 768, 1440]) {
       ["Notificaciones", "notifications"],
       ["Auditoría", "audit"],
       ["Desbloqueos", "unlock"],
+      ["Contacto", "contact"],
     ];
     for (const [name, file] of screens) {
       await navigate(page, name);
