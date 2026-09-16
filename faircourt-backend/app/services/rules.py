@@ -112,8 +112,13 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
 
     Si la primera no cumple reglas, se marca como DROPPED y se sigue con la siguiente.
     """
+    facility = db.get(Facility, facility_id)
+    if not facility:
+        return None
+
     waiting_entries = (
         db.query(WaitlistEntry)
+        .filter(WaitlistEntry.community_id == facility.community_id)
         .filter(WaitlistEntry.facility_id == facility_id)
         .filter(WaitlistEntry.start_at == start_at) # Filtra por la fecha de inicio
         .filter(WaitlistEntry.status == "WAITING") # Filtra por el estado WAITING
@@ -124,7 +129,12 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
     now = utcnow() 
 
     for entry in waiting_entries: # Recorremos todas las reservas
-        household = db.query(Household).filter(Household.id == entry.household_id).first() # Obtenemos la vivienda de la lista de espera
+        household = (
+            db.query(Household)
+            .filter(Household.id == entry.household_id)
+            .filter(Household.community_id == facility.community_id)
+            .first()
+        ) # Obtenemos la vivienda de la lista de espera
         if not household or not household.is_active: # Si la vivienda no existe o no está activa
             entry.status = "DROPPED" # La marcamos como eliminada
 
@@ -180,6 +190,7 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
 
         # Creamos la reserva 
         reservation = Reservation (
+            community_id = facility.community_id,
             household_id = household.id, 
             facility_id = facility_id,
             start_at = start_at, 
@@ -434,6 +445,7 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
     household = (
         db.query(Household)
         .filter(Household.id == reservation.household_id)
+        .filter(Household.community_id == reservation.community_id)
         .first()
     )
 
@@ -444,6 +456,7 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
 
     was_promoted_from_waitlist = (
     db.query(WaitlistEntry)
+    .filter(WaitlistEntry.community_id == reservation.community_id)
     .filter(WaitlistEntry.household_id == reservation.household_id)
     .filter(WaitlistEntry.start_at == reservation.start_at)
     .filter(WaitlistEntry.status == "PROMOTED")

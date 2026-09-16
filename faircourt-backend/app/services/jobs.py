@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Reservation, ReservationStatus, UnlockProposal
+from app.models import Community, Reservation, ReservationStatus, UnlockProposal
 from app.security import utcnow
 from app.services.rules import (
     is_reservation_no_show,
@@ -30,6 +30,8 @@ def process_no_shows_job() -> None:
 
         candidate_reservations = (
             db.query(Reservation)
+            .join(Community, Community.id == Reservation.community_id)
+            .filter(Community.is_active.is_(True))
             .filter(Reservation.status == ReservationStatus.ACTIVE.value)
             .all()
         )
@@ -86,6 +88,8 @@ def process_expired_unlock_proposals_job() -> None:
     try: 
         open_proposals = (
             db.query(UnlockProposal)
+            .join(Community, Community.id == UnlockProposal.community_id)
+            .filter(Community.is_active.is_(True))
             .filter(UnlockProposal.status == "OPEN")
             .all() 
         )

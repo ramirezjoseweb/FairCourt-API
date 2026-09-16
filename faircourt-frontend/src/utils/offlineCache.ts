@@ -1,3 +1,31 @@
+import { getCommunitySlug } from "./community";
+
+function storageKey(key: string): string {
+    return `${key}__${getCommunityCacheScope()}`;
+}
+
+function getCommunityCacheScope(): string {
+    const token = localStorage.getItem("faircourt_token");
+    if (token) {
+        try {
+            const encodedPayload = token.split(".")[1];
+            const base64 = encodedPayload
+                .replace(/-/g, "+")
+                .replace(/_/g, "/")
+                .padEnd(Math.ceil(encodedPayload.length / 4) * 4, "=");
+            const payload = JSON.parse(atob(base64)) as {
+                community_id?: number;
+            };
+            if (payload.community_id) {
+                return `community-${payload.community_id}`;
+            }
+        } catch {
+            // Los fixtures y tokens antiguos pueden no contener claims legibles.
+        }
+    }
+    return getCommunitySlug();
+}
+
 /**
  * Guarda un valor JSON en localStorage.
  *
@@ -10,7 +38,7 @@
 export function saveToCache<T>(key: string, value: T): void {
     try {
         localStorage.setItem(
-            key,
+            storageKey(key),
             JSON.stringify({
                 saved_at: new Date().toISOString(),
                 data: value,
@@ -29,7 +57,7 @@ export function saveToCache<T>(key: string, value: T): void {
  */
 export function loadFromCache<T>(key: string): T | null {
     try {
-        const rawValue = localStorage.getItem(key);
+        const rawValue = localStorage.getItem(storageKey(key));
 
         if (!rawValue) {
             return null;
@@ -51,7 +79,7 @@ export function loadFromCache<T>(key: string): T | null {
  */
 export function getCacheSavedAt(key: string): string | null {
     try {
-        const rawValue = localStorage.getItem(key);
+        const rawValue = localStorage.getItem(storageKey(key));
 
         if (!rawValue) {
             return null;
@@ -62,5 +90,15 @@ export function getCacheSavedAt(key: string): string | null {
         return parsed.saved_at ?? null;
     } catch {
         return null;
+    }
+}
+
+export function clearCommunityCache(): void {
+    const suffix = `__${getCommunityCacheScope()}`;
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+        const key = localStorage.key(index);
+        if (key?.startsWith("faircourt_cache_") && key.endsWith(suffix)) {
+            localStorage.removeItem(key);
+        }
     }
 }

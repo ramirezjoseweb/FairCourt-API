@@ -11,7 +11,12 @@ npm install
 npm run dev
 ```
 
-Abre http://127.0.0.1:5173. El cliente conserva la API existente en http://127.0.0.1:8000 y el acceso por vivienda, correo y OTP. Para utilizar datos reales, inicia el backend siguiendo el README de la raíz. La ayuda para consultar el OTP en la terminal solo aparece en desarrollo.
+Abre http://127.0.0.1:5173 para la comunidad inicial o
+http://127.0.0.1:5173/c/comunidad-b para un portal comunitario concreto. El
+cliente utiliza la API en http://127.0.0.1:8000 y el acceso por vivienda,
+correo y OTP. Para utilizar datos reales, inicia el backend siguiendo el README
+de la raíz. La ayuda para consultar el OTP en la terminal solo aparece en
+desarrollo.
 
 ## Comprobaciones
 
@@ -30,7 +35,10 @@ $env:PW_CHANNEL = "chrome"
 npm run test:e2e
 ```
 
-El conjunto incluye 32 escenarios de acceso, reservas, listas de espera, asistencia, avisos, auditoría, contacto, red, accesibilidad y diseño adaptable. Las respuestas de la API están controladas dentro de los tests; no se crean reservas ni votos en la base de datos real.
+El conjunto incluye 33 escenarios de acceso comunitario, reservas, listas de
+espera, asistencia, avisos, auditoría, contacto, red, accesibilidad y diseño
+adaptable. Las respuestas de la API están controladas dentro de los tests; no
+se crean reservas ni votos en la base de datos real.
 
 Las capturas de cada ejecución se guardan dentro de test-results. Tras una batería completa correcta, ejecuta npm run test:e2e:export para copiar las 30 capturas verificadas a ../docs/images/frontend/current. El informe de Playwright se puede abrir con npm run test:e2e:report. Los perfiles de navegador, trazas e informes temporales están excluidos de Git.
 
@@ -48,7 +56,11 @@ Las seis secciones originales y el apartado de contacto siguen disponibles. La n
 
 La compilación de producción incluye el manifiesto, los iconos y el service worker. El service worker se desactiva en desarrollo para evitar mezclar versiones durante los cambios.
 
-La última información consultada se conserva con las claves de caché existentes. Las escrituras se deshabilitan tanto cuando el navegador pierde conexión como cuando una petición no puede alcanzar la API. Un error HTTP del servidor no se interpreta como desconexión. Se puede reintentar la conexión y los datos se actualizan al recuperarla.
+La última información consultada se conserva con claves separadas por
+comunidad. Las escrituras se deshabilitan tanto cuando el navegador pierde
+conexión como cuando una petición no puede alcanzar la API. Un error HTTP del
+servidor no se interpreta como desconexión. Se puede reintentar la conexión y
+los datos se actualizan al recuperarla.
 
 La prueba de PWA verifica los requisitos de instalación, el control del service worker, los tamaños reales de los iconos y la recarga con la red bloqueada y la caché HTTP desactivada. No instala un acceso directo en el sistema operativo.
 

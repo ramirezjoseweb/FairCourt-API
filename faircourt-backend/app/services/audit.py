@@ -1,7 +1,7 @@
 import json 
 
 from sqlalchemy.orm import Session
-from app.models import AuditLog
+from app.models import AuditLog, Household, Reservation, User
 
 # Función para registrar eventos
 def log_event(
@@ -11,9 +11,27 @@ def log_event(
     user_id: int | None = None, 
     reservation_id: int | None = None, 
     metadata: dict | None = None, 
+    community_id: int | None = None,
 ) -> None: 
+    community_ids = {community_id} if community_id is not None else set()
+    if household_id is not None:
+        household = db.get(Household, household_id)
+        if household:
+            community_ids.add(household.community_id)
+    if user_id is not None:
+        user = db.get(User, user_id)
+        if user:
+            community_ids.add(user.community_id)
+    if reservation_id is not None:
+        reservation = db.get(Reservation, reservation_id)
+        if reservation:
+            community_ids.add(reservation.community_id)
+    if len(community_ids) != 1:
+        raise ValueError("El evento de auditoría debe pertenecer a una única comunidad.")
+
     # Crea una entrada en el registro de auditoría
     entry = AuditLog(
+        community_id=community_ids.pop(),
         event=event, # Tipo de evento
         household_id=household_id, # ID de la vivienda
         user_id=user_id, # ID del usuario
@@ -21,4 +39,4 @@ def log_event(
         metadata_json=json.dumps(metadata or {}, ensure_ascii=False), # Convierte el diccionario de metadatos en una cadena JSON
     )
     db.add(entry) 
-    db.flush() 
+    db.flush()

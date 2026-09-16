@@ -41,12 +41,23 @@ def get_current_user(
             algorithms=[settings.JWT_ALG], # este es el algoritmo que se usa para firmar el token
         ) 
         email = payload.get("sub") # el claim 'sub' es el email del usuario
+        token_community_id = payload.get("community_id")
         if not email: # si no hay email en el claim 'sub' se lanza una excepción
             raise unauthorized
     except JWTError: # si hay un error al decodificar el token se lanza una excepción
         raise unauthorized
     
-    user = db.query(User).filter(User.email == email).first() # esto busca el usuario en la base de datos usando el email del claim 'sub'
+    query = db.query(User).filter(User.email == email)
+    if token_community_id is not None:
+        query = query.filter(User.community_id == token_community_id)
+    user = query.first() # busca el usuario y valida el ámbito incluido en el token
     if not user: 
         raise unauthorized
-    return user  
+    if not user.community or not user.community.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La comunidad no está activa.",
+        )
+    if not user.household or user.household.community_id != user.community_id:
+        raise unauthorized
+    return user

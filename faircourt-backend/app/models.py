@@ -25,8 +25,13 @@ from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, ForeignKey,
     UniqueConstraint, Index
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from .db import Base
+
+
+def normalize_household_code(value: str) -> str:
+    """Normaliza un código para compararlo dentro de su comunidad."""
+    return " ".join(value.strip().upper().split())
 
 class ReservationStatus(str, enum.Enum):
     """
@@ -49,6 +54,23 @@ class ReservationStatus(str, enum.Enum):
     NO_SHOW = "NO_SHOW"
     RELEASED = "RELEASED"
 
+
+class Community(Base):
+    """Frontera de aislamiento de datos de una comunidad de propietarios."""
+
+    __tablename__ = "communities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    timezone = Column(String, default="Europe/Madrid", nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    households = relationship("Household", back_populates="community")
+    users = relationship("User", back_populates="community")
+    facilities = relationship("Facility", back_populates="community")
+
 class Household(Base):
     """
     Representa una vivienda o unidad principal dentro del sistema.
@@ -61,8 +83,19 @@ class Household(Base):
     """ 
     __tablename__ = "households"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "community_id",
+            "code_normalized",
+            name="uq_households_community_code",
+        ),
+        Index("ix_households_community_code", "community_id", "code_normalized"),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String, unique=True, index=True, nullable=False)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
+    code = Column(String, nullable=False)
+    code_normalized = Column(String, nullable=False)
 
     is_active = Column(Boolean, default=True, nullable=False)
     strikes = Column(Integer, default=0, nullable=False)
@@ -70,8 +103,14 @@ class Household(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    community = relationship("Community", back_populates="households")
     user = relationship("User", back_populates="household", uselist=False)
     reservations = relationship("Reservation", back_populates="household")
+
+    @validates("code")
+    def _normalize_code(self, _key: str, value: str) -> str:
+        self.code_normalized = normalize_household_code(value)
+        return value.strip()
 
 class User(Base):
     """
@@ -92,9 +131,11 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
 
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    community = relationship("Community", back_populates="users")
     household = relationship("Household", back_populates="user")
 
 class AuthOTP(Base):
@@ -111,6 +152,7 @@ class AuthOTP(Base):
     __tablename__ = "auth_otps"
 
     id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
     email = Column(String, index=True, nullable=False)
     otp_hash = Column(String, nullable=False)
 
@@ -122,9 +164,14 @@ class Facility(Base):
     """Instalación comunitaria que puede mostrarse y reservarse."""
 
     __tablename__ = "facilities"
+    __table_args__ = (
+        UniqueConstraint("community_id", "slug", name="uq_facilities_community_slug"),
+        Index("ix_facilities_community_priority", "community_id", "priority"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    slug = Column(String, unique=True, index=True, nullable=False)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
+    slug = Column(String, nullable=False)
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
     description = Column(String, nullable=True)
@@ -136,6 +183,7 @@ class Facility(Base):
     closing_hour = Column(Integer, default=22, nullable=False)
     slot_duration_minutes = Column(Integer, default=60, nullable=False)
 
+    community = relationship("Community", back_populates="facilities")
     reservations = relationship("Reservation", back_populates="facility")
     waitlist_entries = relationship("WaitlistEntry", back_populates="facility")
 
@@ -159,11 +207,13 @@ class Reservation(Base):
     """
     __tablename__ = "reservations"
     __table_args__ = (
+        Index("ix_reservations_community_start", "community_id", "start_at"),
         Index("ix_reservations_household_start", "household_id", "start_at"),
         Index("ix_reservations_facility_start", "facility_id", "start_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
     facility_id = Column(Integer, ForeignKey("facilities.id"), nullable=False)
     start_at = Column(DateTime, nullable=False)
@@ -191,6 +241,7 @@ class WaitlistEntry(Base):
     """
     __tablename__ = "waitlist_entries"
     __table_args__ = (
+        Index("ix_waitlist_community_start", "community_id", "start_at"),
         Index("ix_waitlist_facility_start_created", "facility_id", "start_at", "created_at"),
         UniqueConstraint(
             "household_id",
@@ -201,6 +252,7 @@ class WaitlistEntry(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
     start_at = Column(DateTime, nullable=False)
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
     facility_id = Column(Integer, ForeignKey("facilities.id"), nullable=False)
@@ -214,6 +266,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log" 
     
     id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False, index=True)
     event = Column(String, nullable=False, index=True)
 
     household_id = Column(Integer, ForeignKey("households.id"), nullable=True)
@@ -227,6 +280,7 @@ class UnlockProposal(Base):
     __tablename__ = "unlock_proposals" 
 
     id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False, index=True)
 
     target_household_id = Column(Integer, ForeignKey("households.id"), nullable=False) 
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False) 
@@ -245,6 +299,7 @@ class UnlockVote(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False, index=True)
 
     proposal_id = Column(Integer, ForeignKey("unlock_proposals.id"), nullable=False)
     voter_household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
@@ -256,6 +311,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False, index=True)
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)

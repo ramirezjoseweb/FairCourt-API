@@ -100,7 +100,7 @@ export function AppLayout({
                   ? `Vivienda ${me.household_code ?? me.household_id}`
                   : "Tu vivienda"}
               </strong>
-              <span>Miembro de la comunidad</span>
+              <span>{me?.community_name ?? "Miembro de la comunidad"}</span>
             </div>
           </div>
           <Button variant="ghost" onClick={onLogout}>
@@ -112,7 +112,7 @@ export function AppLayout({
       <div className="app-body">
         <header className="topbar">
           <div className="desktop-breadcrumb">
-            Mi comunidad <Icon name="chevron" />
+            {me?.community_name ?? "Mi comunidad"} <Icon name="chevron" />
             <strong>{current.label}</strong>
           </div>
           <div className="mobile-brand">

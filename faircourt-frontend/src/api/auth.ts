@@ -2,11 +2,13 @@ import { apiRequest } from "./client";
 
 // Tipos de datos necesarios para la API.
 export type RequestOtpPayload = {
+    community_slug: string;
     house_code: string;
     email: string;
 };
 
 export type VerifyOtpPayload = {
+    community_slug: string;
     email: string;
     otp: string;
 };
