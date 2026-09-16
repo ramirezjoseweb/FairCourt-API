@@ -18,6 +18,7 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 
 - Registro mediante vivienda y código OTP
 - Autenticación JWT
+- Aislamiento multi-comunidad con viviendas e instalaciones propias
 - Gestión multipista y de espacios comunitarios
 - Catálogo priorizado con Pádel y Tenis en primer lugar
 - Reserva y cancelación de franjas horarias
@@ -76,8 +77,35 @@ npm 11.12.1 o superior
 13. Ir a http://localhost:5173 
 ```
 
+La comunidad migrada inicialmente utiliza el identificador `faircourt`. Cada
+comunidad adicional dispone de su propio portal:
+
+```text
+http://localhost:5173/c/comunidad-a
+http://localhost:5173/c/comunidad-b
+```
+
+El portal fija la comunidad durante el acceso. El JWT, las consultas del
+backend y las cachés PWA vuelven a comprobar ese ámbito; un residente no puede
+cambiar de comunidad manipulando identificadores o la URL.
+
+Para cargar viviendas en la comunidad inicial:
+
+```powershell
+python seed.py --community faircourt --file households.txt
+```
+
+Para crear explícitamente otra comunidad y cargar su lista:
+
+```powershell
+python seed.py --community comunidad-b --community-name "Comunidad B" --file households-b.txt
+```
+
+Los códigos se normalizan y son únicos dentro de cada comunidad. Por tanto,
+`Bloque 18 3ºB` puede existir tanto en `comunidad-a` como en `comunidad-b`.
+
 ## Datos de demostración
-Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1". 
+Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1", dentro del portal `faircourt`.
 Consultar OTP generado en terminal (modo desarrollo).
 
 ## Documentación detallada sobre uso de la aplicación

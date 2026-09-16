@@ -6,11 +6,13 @@ from pydantic import BaseModel, EmailStr, Field # EmailStr es para validar que e
 
 # Clase de la petición de OTP 
 class RequestOTPIn(BaseModel):
+    community_slug: str = Field(default="faircourt", min_length=1, max_length=80)
     house_code: str = Field(min_length=1, max_length=50)
     email: EmailStr
 
 # Clase de la verificación de OTP 
 class VerifyOTPIn(BaseModel):
+    community_slug: str = Field(default="faircourt", min_length=1, max_length=80)
     email: EmailStr
     otp: str = Field(min_length=4, max_length=12)
 
@@ -123,6 +125,9 @@ class MeOut(BaseModel):
     suspended_until: datetime | None = None
     active_waitlist_count: int 
     active_waitlists: list[WaitlistSummaryOut]
+    community_id: int
+    community_slug: str
+    community_name: str
 
 # Clase de la respuesta de auditoría 
 class AuditLogOut(BaseModel): 

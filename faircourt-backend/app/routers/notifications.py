@@ -19,6 +19,7 @@ def list_my_notifications(
     """
     return(
         db.query(Notification)
+        .filter(Notification.community_id == current_user.community_id)
         .filter(Notification.household_id == current_user.household_id)
         .order_by(Notification.created_at.desc()) 
         .all() 
@@ -36,6 +37,7 @@ def mark_notification_as_read(
     notification = (
         db.query(Notification)
         .filter(Notification.id == notification_id) 
+        .filter(Notification.community_id == current_user.community_id)
         .first()
     )
 
@@ -51,4 +53,4 @@ def mark_notification_as_read(
     db.commit()
     db.refresh(notification) 
 
-    return notification 
+    return notification

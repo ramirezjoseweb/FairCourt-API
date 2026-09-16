@@ -1,6 +1,9 @@
 # Renovación de FairCourt — correspondencia y verificación
 
-La matriz se registró antes de sustituir la interfaz. Esta versión completa su verificación después de la renovación. Los contratos HTTP, la autenticación y las reglas del servidor se conservan; el cambio queda preparado en el proyecto local, sin despliegue.
+La matriz se registró antes de sustituir la interfaz. Esta versión completa su
+verificación después de la renovación e incorpora el ámbito multi-comunidad en
+el acceso. Los contratos OTP incluyen ahora `community_slug`; reservas, datos
+offline y recursos del usuario quedan fijados a esa comunidad.
 
 ## Matriz funcional completada
 
@@ -8,7 +11,7 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 
 | Capacidad original o requisito | Nueva ubicación | Pruebas superadas |
 | --- | --- | --- |
-| Solicitar OTP con vivienda y correo; verificar; volver; sesión persistente; salir | Acceso y navegación | auth; connectivity |
+| Solicitar OTP en un portal comunitario con vivienda y correo; verificar; volver; sesión persistente; salir | Acceso y navegación | auth; connectivity |
 | Vivienda, correo, identificador, penalizaciones, suspensión y listas activas | Inicio y detalles de vivienda | home |
 | Consultar una fecha y actualizar manualmente | Agenda diaria; fecha conservada al actualizar o cambiar de sección | agenda; booking; offline |
 | Libre/ocupado, reserva propia, pertenencia y tamaño de lista de espera | Franja de agenda | agenda |
@@ -30,7 +33,7 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 
 ## Resultado de las comprobaciones
 
-- **32 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
+- **33 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
 - **Compilación y análisis estático correctos**, sin desactivar globalmente las reglas. Los archivos generados y los informes temporales quedan excluidos del análisis y de Git.
 - Nueve vistas capturadas a **375, 768 y 1440 píxeles**: acceso, OTP, inicio, disponibilidad, reservas, notificaciones, auditoría, desbloqueos y diálogo. Se comprueba ausencia de desbordamiento horizontal, contenido largo y navegación de teclado.
 - Auditoría automatizada de contraste y semántica en los temas claro y oscuro, en móvil y escritorio, más comprobaciones de foco y movimiento reducido.

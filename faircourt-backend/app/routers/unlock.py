@@ -36,6 +36,7 @@ def list_unlock_proposals(
     """
     proposals = (
         db.query(UnlockProposal)
+        .filter(UnlockProposal.community_id == current_user.community_id)
         .order_by(UnlockProposal.created_at.desc())
         .all()
     )
@@ -48,6 +49,7 @@ def list_unlock_proposals(
         household = (
             db.query(Household)
             .filter(Household.id == proposal.target_household_id)
+            .filter(Household.community_id == current_user.community_id)
             .first()
         )
 
@@ -81,6 +83,7 @@ def create_unlock_proposal(
     household = (
         db.query(Household)
         .filter(Household.id == current_user.household_id)
+        .filter(Household.community_id == current_user.community_id)
         .first()
     )
 
@@ -100,6 +103,7 @@ def create_unlock_proposal(
 
     existing = (
         db.query(UnlockProposal)
+        .filter(UnlockProposal.community_id == current_user.community_id)
         .filter(UnlockProposal.target_household_id == household.id)
         .filter(UnlockProposal.status == "OPEN")
         .first()
@@ -112,6 +116,7 @@ def create_unlock_proposal(
         )
 
     proposal = UnlockProposal(
+        community_id=current_user.community_id,
         target_household_id=household.id,
         created_by_user_id=current_user.id,
         reason=payload.reason,
@@ -163,7 +168,12 @@ def cast_unlock_vote(
         raise HTTPException(status_code=400, detail="El voto debe ser YES o NO")
 
     # Buscamos la propuesta
-    proposal = db.query(UnlockProposal).filter(UnlockProposal.id == proposal_id).first() 
+    proposal = (
+        db.query(UnlockProposal)
+        .filter(UnlockProposal.id == proposal_id)
+        .filter(UnlockProposal.community_id == current_user.community_id)
+        .first()
+    )
     if not proposal: 
         raise HTTPException(status_code=404, detail="Propuesta no encontrada")
 
@@ -177,7 +187,12 @@ def cast_unlock_vote(
         raise HTTPException(status_code=403, detail="La vivienda afectada no puede votar en su propia propuesta.") 
 
     # Obtenemos la vivienda del usuario
-    voter_household = db.query(Household).filter(Household.id == current_user.household_id).first() 
+    voter_household = (
+        db.query(Household)
+        .filter(Household.id == current_user.household_id)
+        .filter(Household.community_id == current_user.community_id)
+        .first()
+    )
     now = utcnow() 
  
     # Verificamos que la vivienda esté activa
@@ -202,6 +217,7 @@ def cast_unlock_vote(
 
     # Creamos el voto
     vote = UnlockVote(
+        community_id=current_user.community_id,
         proposal_id=proposal_id, 
         voter_household_id = current_user.household_id,
         vote = vote_value, 

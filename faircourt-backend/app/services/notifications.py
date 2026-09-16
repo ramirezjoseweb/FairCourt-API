@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session 
-from app.models import Notification, User
+from app.models import Household, Notification, User
 
 def create_notification(
     db: Session,
@@ -11,7 +11,18 @@ def create_notification(
     """ 
     Crea una notificación interna para una vivienda/usuario
     """
+    user = db.get(User, user_id)
+    household = db.get(Household, household_id)
+    if (
+        not user
+        or not household
+        or user.community_id != household.community_id
+        or user.household_id != household.id
+    ):
+        raise ValueError("Usuario y vivienda deben pertenecer a la misma comunidad.")
+
     notification = Notification(
+        community_id=household.community_id,
         user_id=user_id, 
         household_id=household_id, 
         type=type, 
@@ -32,7 +43,16 @@ def notify_household(
     """ 
     Notifica al usuario asociado a una vivienda
     """
-    user = db.query(User).filter(User.household_id == household_id).first()
+    household = db.get(Household, household_id)
+    if not household:
+        return None
+
+    user = (
+        db.query(User)
+        .filter(User.household_id == household_id)
+        .filter(User.community_id == household.community_id)
+        .first()
+    )
 
     if not user: 
         return None

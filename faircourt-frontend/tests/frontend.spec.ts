@@ -32,7 +32,11 @@ test("auth: OTP payloads, errors, back, persistence and logout", async ({
   ).toBeVisible();
   expect(
     state.requests.find((row) => row.path === "/auth/request-otp")?.body,
-  ).toEqual({ house_code: "A1", email: "vecino@faircourt.es" });
+  ).toEqual({
+    community_slug: "faircourt",
+    house_code: "A1",
+    email: "vecino@faircourt.es",
+  });
   await page.getByRole("button", { name: "Volver a mis datos" }).click();
   await expect(page.getByLabel("Código de vivienda")).toHaveValue(" A1 ");
   await page
@@ -49,7 +53,11 @@ test("auth: OTP payloads, errors, back, persistence and logout", async ({
   ).toBeVisible();
   expect(
     state.requests.find((row) => row.path === "/auth/verify-otp")?.body,
-  ).toEqual({ email: "vecino@faircourt.es", otp: "123456" });
+  ).toEqual({
+    community_slug: "faircourt",
+    email: "vecino@faircourt.es",
+    otp: "123456",
+  });
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "Qué bien tenerte de vuelta." }),
@@ -65,6 +73,22 @@ test("auth: OTP payloads, errors, back, persistence and logout", async ({
   expect(
     await page.evaluate(() => localStorage.getItem("faircourt_token")),
   ).toBeNull();
+});
+test("auth: community portal fixes the OTP request scope", async ({ page }) => {
+  const state = await setup(page, { authenticated: false });
+  await page.goto("/c/community-b");
+  await page.getByLabel("Código de vivienda").fill("Bloque 18 3ºB");
+  await page.getByLabel("Correo electrónico").fill("resident-b@example.com");
+  await page
+    .getByRole("button", { name: "Solicitar código de acceso" })
+    .click();
+  expect(
+    state.requests.find((row) => row.path === "/auth/request-otp")?.body,
+  ).toEqual({
+    community_slug: "community-b",
+    house_code: "Bloque 18 3ºB",
+    email: "resident-b@example.com",
+  });
 });
 test("appearance: system theme, manual toggle and persistence", async ({
   page,
@@ -463,7 +487,9 @@ test("notifications: read state, cache and global counter update", async ({
   ).toHaveLength(1);
   const cached = await page.evaluate(
     () =>
-      JSON.parse(localStorage.getItem("faircourt_cache_notifications")!).data,
+      JSON.parse(
+        localStorage.getItem("faircourt_cache_notifications__faircourt")!,
+      ).data,
   );
   expect(cached.find((row: { id: number }) => row.id === 1).is_read).toBe(true);
 });

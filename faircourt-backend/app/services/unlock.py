@@ -20,7 +20,12 @@ def resolve_unlock_proposals_if_needed(db: Session, proposal: UnlockProposal):
 
     now = utcnow() 
 
-    votes = db.query(UnlockVote).filter(UnlockVote.proposal_id == proposal.id).all() # Obtiene los votos de la propuesta
+    votes = (
+        db.query(UnlockVote)
+        .filter(UnlockVote.proposal_id == proposal.id)
+        .filter(UnlockVote.community_id == proposal.community_id)
+        .all()
+    ) # Obtiene los votos de la propuesta
     yes_votes = sum(1 for v in votes if v.vote == "YES") # Cuenta los votos a favor
     no_votes = sum(1 for v in votes if v.vote == "NO") # Cuenta los votos en contra
 
@@ -35,7 +40,12 @@ def resolve_unlock_proposals_if_needed(db: Session, proposal: UnlockProposal):
         proposal.status = "APPROVED" 
         proposal.resolved_at = now
 
-        household = db.query(Household).filter(Household.id == proposal.target_household_id).first()
+        household = (
+            db.query(Household)
+            .filter(Household.id == proposal.target_household_id)
+            .filter(Household.community_id == proposal.community_id)
+            .first()
+        )
         # si el household es igual al household_id de la propuesta entonces se libera y resetean los strikes 
         if household: 
             household.suspended_until = None 

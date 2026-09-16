@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getMe } from "../api/me";
 import { getMyNotifications } from "../api/notifications";
 import { getFacilities } from "../api/facilities";
@@ -16,6 +16,7 @@ import { UnlockPanel } from "./UnlockPanel";
 import { ContactPanel } from "./ContactPanel";
 import { Empty, Loading, Notice, ResourceError } from "./ui";
 import { localDay } from "../utils/format";
+import { getCommunitySlug } from "../utils/community";
 export function Dashboard({
   onLogout,
   theme,
@@ -45,6 +46,11 @@ export function Dashboard({
   useReconnectSync(online, reconnect);
   const unread =
     notifications.data?.filter((item) => !item.is_read).length ?? 0;
+  useEffect(() => {
+    if (me.data && me.data.community_slug !== getCommunitySlug()) {
+      onLogout();
+    }
+  }, [me.data, onLogout]);
   return (
     <AppLayout
       activeView={activeView}

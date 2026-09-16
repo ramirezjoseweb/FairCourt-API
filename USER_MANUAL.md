@@ -8,6 +8,11 @@ Este manual explica el funcionamiento de la aplicación desde el punto de vista 
 La versión pública utiliza datos ficticios. Las reservas, notificaciones y códigos de vivienda pueden reiniciarse periódicamente.
 
 ## Inicio de sesión  
+Cada enlace de acceso pertenece a una comunidad concreta. Por ejemplo,
+`/c/comunidad-a` y `/c/comunidad-b` son portales independientes. Un residente
+no necesita ni puede utilizar un selector para saltar entre ellas: su vivienda,
+su sesión y sus instalaciones deben pertenecer al portal desde el que accede.
+
 Para iniciar sesión se deberá de asociar la primera vez el código de 
 vivienda con un correo electrónico, dicho correo tiene que ser siempre el mismo 
 posteriormente para que el sistema te permita iniciar sesión con el código de 
@@ -17,6 +22,9 @@ vivienda asociado.
 3. Introduce el código OTP generado por el sistema. 
 4. Acceder a la página de inicio FairCourt. 
 No se podrá acceder si el código de vivienda no existe o si el correo introducido es diferente al asociado previamente a la vivienda.
+El mismo código de vivienda puede existir en dos comunidades distintas sin
+compartir cuenta, reservas, listas de espera, sanciones, auditoría o
+notificaciones.
 
 ## Apariencia clara y oscura
 FairCourt utiliza inicialmente el tema claro u oscuro configurado en el
@@ -118,6 +126,8 @@ modificarse antes del envío.
 Por último, en la parte superior derecha de FairCourt, se podrá observar 
 un botón “Cerrar sesión”. Al hacerlo se elimina la sesión activa y será necesario 
 repetir el proceso de autenticación mediante OTP.  
+También se eliminan los datos offline de esa sesión comunitaria para evitar
+que aparezcan al acceder después con otra cuenta en el mismo dispositivo.
 
 ## Otros documentos, manuales
 Los manuales de instalación y usuario son imprescindibles para el 

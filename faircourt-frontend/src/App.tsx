@@ -14,6 +14,8 @@ import { useAction } from "./hooks/useAction";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useTheme } from "./hooks/useTheme";
 import { retryConnection } from "./utils/networkStatus";
+import { getCommunitySlug } from "./utils/community";
+import { clearCommunityCache } from "./utils/offlineCache";
 
 export default function App() {
   const [token, setToken] = useState(() =>
@@ -27,7 +29,9 @@ export default function App() {
   const action = useAction();
   const [deliveryMessage, setDeliveryMessage] = useState("");
   const { theme, toggleTheme } = useTheme();
+  const communitySlug = getCommunitySlug();
   function logout() {
+    clearCommunityCache();
     localStorage.removeItem("faircourt_token");
     setToken(null);
     setStep("request");
@@ -43,6 +47,7 @@ export default function App() {
     await action.run(async () => {
       if (step === "request") {
         const response = await requestOtp({
+          community_slug: communitySlug,
           house_code: houseCode.trim(),
           email: email.trim(),
         });
@@ -50,6 +55,7 @@ export default function App() {
         setStep("verify");
       } else {
         const response = await verifyOtp({
+          community_slug: communitySlug,
           email: email.trim(),
           otp: otp.trim(),
         });

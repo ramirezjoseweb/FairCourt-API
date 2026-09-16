@@ -18,10 +18,16 @@ def read_me(
     """ Devuelve información básica del usuario autenticado
         Sirve para comprobar que el JWT funciona correctamente """
 
-    household = db.query(Household).filter(Household.id == current_user.household_id).first() 
+    household = (
+        db.query(Household)
+        .filter(Household.id == current_user.household_id)
+        .filter(Household.community_id == current_user.community_id)
+        .first()
+    )
 
     active_waitlists = (
         db.query(WaitlistEntry)
+        .filter(WaitlistEntry.community_id == current_user.community_id)
         .filter(WaitlistEntry.household_id == current_user.household_id)
         .filter(WaitlistEntry.status == "WAITING")
         .all()
@@ -32,6 +38,9 @@ def read_me(
         "email": current_user.email,
         "household_id": current_user.household_id,
         "household_code": household.code if household else None,
+        "community_id": current_user.community_id,
+        "community_slug": current_user.community.slug,
+        "community_name": current_user.community.name,
         "strikes": household.strikes if household else None, 
         "suspended_until": household.suspended_until if household else None,
         "active_waitlists_count": len(active_waitlists),

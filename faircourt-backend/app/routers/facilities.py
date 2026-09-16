@@ -18,6 +18,7 @@ def list_facilities(
     """Devuelve el catálogo activo, con Pádel y Tenis en primer lugar."""
     return (
         db.query(Facility)
+        .filter(Facility.community_id == _current_user.community_id)
         .filter(Facility.is_active.is_(True))
         .order_by(Facility.priority.asc(), Facility.name.asc())
         .all()

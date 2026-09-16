@@ -11,6 +11,9 @@ export type MeResponse = {
     email: string;
     household_id: number;
     household_code?: string | null;
+    community_id: number;
+    community_slug: string;
+    community_name: string;
     strikes?: number;
     suspended_until?: string | null;
     active_waitlists_count?: number;

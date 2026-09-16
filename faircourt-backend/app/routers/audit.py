@@ -17,6 +17,7 @@ def get_my_audit_logs(
     # Filtra los logs de auditoría por el ID de la vivienda del usuario autenticado
     entries = (
         db.query(AuditLog) 
+        .filter(AuditLog.community_id == current_user.community_id)
         .filter(AuditLog.household_id == current_user.household_id)
         .order_by(AuditLog.created_at.desc())
         .all() 

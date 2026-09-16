@@ -59,7 +59,12 @@ def create_reservation(
     - máximo de reservas activas por semana por vivienda
     """
     # Obtenemos la vivienda del usuario autenticado 
-    household = db.query(Household).filter(Household.id == current_user.household_id).first() 
+    household = (
+        db.query(Household)
+        .filter(Household.id == current_user.household_id)
+        .filter(Household.community_id == current_user.community_id)
+        .first()
+    )
     if not household or not household.is_active: 
         raise HTTPException(status_code=403, detail="La vivienda no está activa") 
 
@@ -72,6 +77,7 @@ def create_reservation(
     facility = (
         db.query(Facility)
         .filter(Facility.id == payload.facility_id)
+        .filter(Facility.community_id == current_user.community_id)
         .filter(Facility.is_active.is_(True))
         .first()
     )
@@ -136,6 +142,7 @@ def create_reservation(
 
     # Creamos la reserva 
     reservation = Reservation(
+        community_id=current_user.community_id,
         household_id=household.id, 
         facility_id=facility.id,
         start_at=start_at,
@@ -189,6 +196,7 @@ def list_my_reservations(
     """
     reservations = (
         db.query(Reservation) 
+        .filter(Reservation.community_id == current_user.community_id)
         .filter(Reservation.household_id == current_user.household_id)
         .order_by(Reservation.start_at.asc()) # Ordenamos por fecha de inicio ascendente
         .all() # Obtenemos todas las reservas
@@ -218,6 +226,7 @@ def cancel_reservation(
     reservation = (
         db.query(Reservation) 
         .filter(Reservation.id == reservation_id) # si el id de la reserva es igual al id que se pasa por parametro
+        .filter(Reservation.community_id == current_user.community_id)
         .first() 
     )
 
@@ -302,12 +311,18 @@ def get_slots(
     - cuánta gente hay en waitlist
     - si la vivienda actual ya está en waitlist
     """
-    household = db.query(Household).filter(Household.id == current_user.household_id).first() 
+    household = (
+        db.query(Household)
+        .filter(Household.id == current_user.household_id)
+        .filter(Household.community_id == current_user.community_id)
+        .first()
+    )
     now = utcnow() 
 
     facility = (
         db.query(Facility)
         .filter(Facility.id == facility_id)
+        .filter(Facility.community_id == current_user.community_id)
         .filter(Facility.is_active.is_(True))
         .first()
     )
@@ -323,6 +338,7 @@ def get_slots(
     
     reservations = (
         db.query(Reservation) 
+        .filter(Reservation.community_id == current_user.community_id)
         .filter(Reservation.facility_id == facility.id)
         .filter(Reservation.start_at >= day_start) # Filtra las reservas que empiezan en el día indicado
         .filter(Reservation.start_at < day_end) # y que terminan en el día indicado
@@ -383,7 +399,12 @@ def join_waitlist(
     """
     Apunta la vivienda autenticada a la lista de espera de una franja
     """
-    household = db.query(Household).filter(Household.id == current_user.household_id).first() # verifica que la vivienda existe y pertenece al usuario
+    household = (
+        db.query(Household)
+        .filter(Household.id == current_user.household_id)
+        .filter(Household.community_id == current_user.community_id)
+        .first()
+    ) # verifica que la vivienda existe y pertenece al usuario
     if not household or not household.is_active: 
         raise HTTPException(status_code=403, detail="La vivienda no está activa")
 
@@ -396,6 +417,7 @@ def join_waitlist(
     facility = (
         db.query(Facility)
         .filter(Facility.id == payload.facility_id)
+        .filter(Facility.community_id == current_user.community_id)
         .filter(Facility.is_active.is_(True))
         .first()
     )
@@ -442,6 +464,7 @@ def join_waitlist(
     """
 
     existing = (db.query(WaitlistEntry)
+    .filter(WaitlistEntry.community_id == current_user.community_id)
     .filter(WaitlistEntry.household_id == household.id)
     .filter(WaitlistEntry.facility_id == facility.id)
     .filter(WaitlistEntry.start_at == start_at)
@@ -455,6 +478,7 @@ def join_waitlist(
         )
 
     entry = WaitlistEntry(
+        community_id=current_user.community_id,
         start_at = start_at, 
         household_id = household.id, 
         facility_id = facility.id,
@@ -507,6 +531,7 @@ def leave_waitlist(
     entry = (
         db.query(WaitlistEntry) 
         .filter(WaitlistEntry.id == entry_id)
+        .filter(WaitlistEntry.community_id == current_user.community_id)
         .first() 
     )
 
@@ -551,6 +576,7 @@ def get_checkin_qr(
     reservation = (
         db.query(Reservation) 
         .filter(Reservation.id == reservation_id) 
+        .filter(Reservation.community_id == current_user.community_id)
         .first() 
     )
 
@@ -564,7 +590,11 @@ def get_checkin_qr(
         raise HTTPException(status_code=400, detail="No puedes acceder al QR de una reserva que no está activa")
 
     expires_at = reservation.start_at + timedelta(minutes=settings.CHECKIN_WINDOW_MINUTES)
-    token = create_checkin_token(reservation.id, expires_at)
+    token = create_checkin_token(
+        reservation.id,
+        expires_at,
+        reservation.community_id,
+    )
     checkin_url = f"{settings.CHECKIN_BASE_URL}/reservations/checkin/scan?token={token}"
 
     return {
@@ -591,12 +621,14 @@ def checkin_scan(
         raise HTTPException(status_code=401, detail="Token de check-in no válido") 
 
     reservation_id = payload.get("reservation_id") 
-    if not reservation_id: # Comprueba que el token tenga una reserva_id
+    community_id = payload.get("community_id")
+    if not reservation_id or not community_id: # Comprueba que el token tenga ámbito y reserva
         raise HTTPException(status_code=401, detail="Token de check-in incompleto") 
 
     reservation = (
         db.query(Reservation) 
         .filter(Reservation.id == reservation_id) 
+        .filter(Reservation.community_id == community_id)
         .first() 
     )
 
@@ -623,7 +655,8 @@ def checkin_scan(
 
 @router.post("/process-no-shows", response_model=NoShowProcessOut)
 def process_no_shows(
-    db: Session = Depends(get_db) 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ): 
     """
     Procesa reservas activas cuya ventana de check-in ya expiró sin check-in.
@@ -638,6 +671,7 @@ def process_no_shows(
 
     candidate_reservations = (
         db.query(Reservation) 
+        .filter(Reservation.community_id == current_user.community_id)
         .filter(Reservation.status == ReservationStatus.ACTIVE.value) 
         .all()
     )
