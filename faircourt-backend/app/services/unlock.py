@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.models import UnlockProposal, UnlockVote, Household
 from app.services.audit import log_event
 from app.services.notifications import notify_household
 from app.security import utcnow
+from app.services.policies import get_community_policy
 
 # Este archivo se encarga de la lógica de desbloqueo de cuentas
 
@@ -19,6 +19,7 @@ def resolve_unlock_proposals_if_needed(db: Session, proposal: UnlockProposal):
         return proposal
 
     now = utcnow() 
+    policy = get_community_policy(db, proposal.community_id)
 
     votes = (
         db.query(UnlockVote)
@@ -32,7 +33,7 @@ def resolve_unlock_proposals_if_needed(db: Session, proposal: UnlockProposal):
     # SI SE ACEPTA LA PROPUESTA
     should_approve = (
         # Si los votos positivos son >= 2 y mayor que los votos negativos, deberia aprobarse la petición y levantar el bloqueo
-        yes_votes >= settings.UNLOCK_MIN_YES_VOTES
+        yes_votes >= policy.unlock_min_yes_votes
         and yes_votes > no_votes
     )
 
@@ -77,7 +78,7 @@ def resolve_unlock_proposals_if_needed(db: Session, proposal: UnlockProposal):
     # SI SE RECHAZA LA PROPUESTA
     should_reject = (
         # Si los votos negativos son 2 o mas, votos negativos son mayores que los positivos o ahora es superior a la fecha de cierre de la propuesta
-        no_votes >= settings.UNLOCK_MIN_YES_VOTES
+        no_votes >= policy.unlock_min_yes_votes
         and no_votes > yes_votes
     )
 

@@ -11,6 +11,7 @@ from app.services.rules import (
     try_promote_waitlist_for_slot,
 )
 from app.services.unlock import resolve_unlock_proposals_if_needed
+from app.services.policies import get_community_policy
 
 def process_no_shows_job() -> None:
     """
@@ -39,12 +40,17 @@ def process_no_shows_job() -> None:
         processed = 0
         no_show_count = 0
         promoted_count = 0
+        policies = {}
 
         for reservation in candidate_reservations:
             processed += 1
 
             try:
-                if not is_reservation_no_show(reservation, now):
+                policy = policies.get(reservation.community_id)
+                if not policy:
+                    policy = get_community_policy(db, reservation.community_id)
+                    policies[reservation.community_id] = policy
+                if not is_reservation_no_show(reservation, now, policy):
                     continue
 
                 apply_no_show_penalty(db, reservation, now)

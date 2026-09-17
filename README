@@ -19,6 +19,7 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 - Registro mediante vivienda y código OTP
 - Autenticación JWT
 - Aislamiento multi-comunidad con viviendas e instalaciones propias
+- Reglas de reserva y equidad independientes por comunidad
 - Gestión multipista y de espacios comunitarios
 - Catálogo priorizado con Pádel y Tenis en primer lugar
 - Reserva y cancelación de franjas horarias
@@ -103,6 +104,14 @@ python seed.py --community comunidad-b --community-name "Comunidad B" --file hou
 
 Los códigos se normalizan y son únicos dentro de cada comunidad. Por tanto,
 `Bloque 18 3ºB` puede existir tanto en `comunidad-a` como en `comunidad-b`.
+
+Cada comunidad dispone además de una única política persistida en la base de
+datos. La ventana de reserva, el límite semanal, la antelación de cancelación,
+el check-in, las sanciones, la lista de espera, las horas punta, el cooldown y
+las votaciones de desbloqueo se evalúan siempre con la política de la comunidad
+autenticada. Al crear una comunidad mediante `seed.py` se genera una política
+con los valores iniciales de FairCourt. La política efectiva puede consultarse,
+con autenticación, en `GET /community/policy`.
 
 ## Datos de demostración
 Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1", dentro del portal `faircourt`.

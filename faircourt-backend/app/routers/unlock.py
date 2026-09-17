@@ -5,7 +5,6 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.db import get_db
 from app.deps import get_current_user
 from app.models import UnlockProposal, UnlockVote, Household, User
@@ -18,6 +17,7 @@ from app.schemas import(
 from app.security import utcnow
 from app.services.audit import log_event
 from app.services.unlock import resolve_unlock_proposals_if_needed
+from app.services.policies import get_community_policy
 
 router = APIRouter(prefix="/unlock", tags=["unlock"]) 
 
@@ -94,6 +94,13 @@ def create_unlock_proposal(
         )
 
     now = utcnow()
+    policy = get_community_policy(db, current_user.community_id)
+
+    if not policy.unlock_voting_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="Las votaciones de desbloqueo no están activadas en esta comunidad.",
+        )
 
     if not household.suspended_until or household.suspended_until <= now:
         raise HTTPException(
@@ -122,7 +129,7 @@ def create_unlock_proposal(
         reason=payload.reason,
         status="OPEN",
         created_at=now,
-        closes_at=now + timedelta(hours=settings.UNLOCK_VOTING_HOURS),
+        closes_at=now + timedelta(hours=policy.unlock_voting_hours),
     )
 
     db.add(proposal)
@@ -176,6 +183,13 @@ def cast_unlock_vote(
     )
     if not proposal: 
         raise HTTPException(status_code=404, detail="Propuesta no encontrada")
+
+    policy = get_community_policy(db, current_user.community_id)
+    if not policy.unlock_voting_enabled:
+        raise HTTPException(
+            status_code=409,
+            detail="Las votaciones de desbloqueo no están activadas en esta comunidad.",
+        )
 
     # Resolvemos la propuesta
     proposal = resolve_unlock_proposals_if_needed(db, proposal) 

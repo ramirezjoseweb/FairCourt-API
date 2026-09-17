@@ -22,7 +22,12 @@ from typing import Iterable
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
-from app.models import Community, Household, normalize_household_code
+from app.models import (
+    Community,
+    CommunityPolicy,
+    Household,
+    normalize_household_code,
+)
 
 # Función para leer los códigos del fichero
 def parse_codes_file(path: str) -> list[str]: 
@@ -61,7 +66,11 @@ def get_or_create_community(
             "Usa --community-name para crearla explícitamente."
         )
 
-    community = Community(slug=normalized_slug, name=name.strip())
+    community = Community(
+        slug=normalized_slug,
+        name=name.strip(),
+        policy=CommunityPolicy(),
+    )
     db.add(community)
     db.commit()
     db.refresh(community)

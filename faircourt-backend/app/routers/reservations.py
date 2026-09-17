@@ -7,12 +7,12 @@ from jose import JWTError
 from sqlalchemy.orm import Session
 
 
-from app.config import settings 
 from app.db import get_db
 from app.deps import get_current_user
 from app.models import Facility, Reservation, ReservationStatus, Household, User, WaitlistEntry
 from app.services.audit import log_event
 from app.services.notifications import notify_household
+from app.services.policies import get_community_policy
 from app.schemas import CreateReservationIn, ReservationOut, SlotOut, WaitlistIn, WaitlistOut, CheckinQRout, MessageOut, NoShowProcessOut
 from app.security import utcnow, create_access_token, decode_checkin_token, create_checkin_token
 from app.services.rules import (
@@ -85,6 +85,7 @@ def create_reservation(
         raise HTTPException(status_code=404, detail="Instalación no encontrada")
     if not facility.is_reservable:
         raise HTTPException(status_code=409, detail="Esta instalación no admite reservas")
+    policy = get_community_policy(db, current_user.community_id)
 
     # Comprueba si la reserva está dentro del horario de la pista 
     """if payload.start_at.hour < settings.OPENING_HOUR or payload.start_at.hour > settings.CLOSING_HOUR: 
@@ -102,10 +103,10 @@ def create_reservation(
         raise HTTPException(status_code=400, detail="No se puede reservar en el pasado")
 
     # Comprueba si la fecha de inicio está dentro de la ventana de reserva 
-    if not is_within_booking_window(start_at, now): 
+    if not is_within_booking_window(start_at, now, policy):
         raise HTTPException(
             status_code = 400, 
-            detail = f"La reserva debe estar dentro de los próximos {settings.BOOKING_WINDOW_DAYS} días"
+            detail = f"La reserva debe estar dentro de los próximos {policy.booking_window_days} días"
         )
 
     # Comprueba si la franja horaria está libre 
@@ -121,22 +122,28 @@ def create_reservation(
     
     # Comprueba si la vivienda tiene el máximo de reservas activas esta semana 
     weekly_count = count_active_reservations_this_week(db, household.id, facility.id, start_at)
-    if weekly_count >= settings.MAX_ACTIVE_RESERVATIONS_PER_WEEK: 
+    if weekly_count >= policy.max_active_reservations_per_week:
         raise HTTPException(
             status_code = 409, 
             detail=(
                 f"La vivienda ya tiene el máximo de "
-                f"{settings.MAX_ACTIVE_RESERVATIONS_PER_WEEK} reservas activas esta semana."
+                f"{policy.max_active_reservations_per_week} reservas activas esta semana."
             ),
         )
 
-    on_cooldown, cooldown_group = household_is_on_cooldown_for_slot(db, household.id, facility.id, start_at)
+    on_cooldown, cooldown_group = household_is_on_cooldown_for_slot(
+        db,
+        household.id,
+        facility.id,
+        start_at,
+        policy,
+    )
     if on_cooldown: 
         raise HTTPException(
             status_code = 409, 
             detail=(
                 f"La vivienda está en cooldown para la franja {cooldown_group}. "
-                f"Debe esperar {settings.COOLDOWN_DAYS} días para volver a reservar en esta franja horaria."
+                f"Debe esperar {policy.cooldown_days} días para volver a reservar en esta franja horaria."
             ),
         )
 
@@ -149,8 +156,8 @@ def create_reservation(
         end_at=end_at, 
         status = ReservationStatus.ACTIVE.value, 
         created_at = now, 
-        prime_time = is_prime_time(start_at), 
-        cooldown_group = get_cooldown_group(start_at), 
+        prime_time = is_prime_time(start_at, policy),
+        cooldown_group = get_cooldown_group(start_at, policy),
     )
 
     # Lanzamos notificación
@@ -246,11 +253,12 @@ def cancel_reservation(
         ) # si la reserva ya ha sido cancelada
     
     now = utcnow() 
+    policy = get_community_policy(db, current_user.community_id)
 
-    if not can_cancel_reservation(reservation.start_at, now): # si la reserva no se puede cancelar
+    if not can_cancel_reservation(reservation.start_at, now, policy):
         raise HTTPException(
             status_code = 400, 
-            detail =(f"La reserva puede cancelarse solo con al menos {settings.CANCELLATION_LIMIT_HOURS} horas de antelación"
+            detail =(f"La reserva puede cancelarse solo con al menos {policy.cancellation_limit_hours} horas de antelación"
         ),
     )
 
@@ -425,6 +433,7 @@ def join_waitlist(
         raise HTTPException(status_code=404, detail="Instalación no encontrada")
     if not facility.is_reservable:
         raise HTTPException(status_code=409, detail="Esta instalación no admite reservas")
+    policy = get_community_policy(db, current_user.community_id)
     valid_starts = {slot_start for slot_start, _ in generate_daily_slots(start_at.date(), facility)}
     if start_at not in valid_starts:
         raise HTTPException(status_code=400, detail="La hora no corresponde a una franja de la instalación")
@@ -432,10 +441,10 @@ def join_waitlist(
     if start_at < now: 
         raise HTTPException(status_code=400, detail="No puedes apuntarte a una franja pasada") 
 
-    if not is_within_booking_window(start_at, now): 
+    if not is_within_booking_window(start_at, now, policy):
         raise HTTPException(
             status_code = 400, 
-            detail=f"La franja debe estar dentro de los próximos {settings.BOOKING_WINDOW_DAYS} días"
+            detail=f"La franja debe estar dentro de los próximos {policy.booking_window_days} días"
         )
     
     if slot_is_free(db, facility.id, start_at):
@@ -450,7 +459,15 @@ def join_waitlist(
             detail="Ya tienes una reserva activa en esa franja"
         )
 
-    if count_active_waitlist_for_household(db, household.id, facility.id, start_at) >= settings.MAX_ACTIVE_WAITLISTS_PER_WEEK:
+    if (
+        count_active_waitlist_for_household(
+            db,
+            household.id,
+            facility.id,
+            start_at,
+        )
+        >= policy.max_active_waitlists_per_week
+    ):
         raise HTTPException(
             status_code = 409, 
             detail="Ya tienes el máximo de waitlists activas permitidas"
@@ -589,7 +606,10 @@ def get_checkin_qr(
     if reservation.status != ReservationStatus.ACTIVE.value:
         raise HTTPException(status_code=400, detail="No puedes acceder al QR de una reserva que no está activa")
 
-    expires_at = reservation.start_at + timedelta(minutes=settings.CHECKIN_WINDOW_MINUTES)
+    policy = get_community_policy(db, current_user.community_id)
+    expires_at = reservation.start_at + timedelta(
+        minutes=policy.checkin_window_minutes
+    )
     token = create_checkin_token(
         reservation.id,
         expires_at,
@@ -636,7 +656,8 @@ def checkin_scan(
         raise HTTPException(status_code=404, detail="Reserva no encontrada") 
 
     now = utcnow() 
-    can_checkin, reason = can_checkin_reservation(reservation, now) # Comprueba si la reserva se puede checkear
+    policy = get_community_policy(db, reservation.community_id)
+    can_checkin, reason = can_checkin_reservation(reservation, now, policy)
 
     if not can_checkin: # Si la reserva no se puede checkear
         detail_map = {
@@ -668,6 +689,7 @@ def process_no_shows(
     - intenta promocionar waitlist
     """
     now = utcnow() 
+    policy = get_community_policy(db, current_user.community_id)
 
     candidate_reservations = (
         db.query(Reservation) 
@@ -687,7 +709,7 @@ def process_no_shows(
         processed += 1 
 
         # Si la reserva no es un no-show, se salta
-        if not is_reservation_no_show(reservation, now): 
+        if not is_reservation_no_show(reservation, now, policy):
             continue
         
         # Si la reserva es un no-show, se aplica la penalización

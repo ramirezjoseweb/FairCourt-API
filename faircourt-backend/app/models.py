@@ -23,7 +23,7 @@ import enum
 from datetime import datetime
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, ForeignKey,
-    UniqueConstraint, Index
+    CheckConstraint, UniqueConstraint, Index
 )
 from sqlalchemy.orm import relationship, validates
 from .db import Base
@@ -70,6 +70,92 @@ class Community(Base):
     households = relationship("Household", back_populates="community")
     users = relationship("User", back_populates="community")
     facilities = relationship("Facility", back_populates="community")
+    policy = relationship(
+        "CommunityPolicy",
+        back_populates="community",
+        cascade="all, delete-orphan",
+        single_parent=True,
+        uselist=False,
+    )
+
+
+class CommunityPolicy(Base):
+    """Reglas de reserva y equidad configurables por comunidad."""
+
+    __tablename__ = "community_policies"
+    __table_args__ = (
+        CheckConstraint("booking_window_days >= 0", name="ck_policy_booking_window"),
+        CheckConstraint(
+            "max_active_reservations_per_week >= 0",
+            name="ck_policy_reservation_limit",
+        ),
+        CheckConstraint(
+            "cancellation_limit_hours >= 0",
+            name="ck_policy_cancellation_limit",
+        ),
+        CheckConstraint(
+            "checkin_window_minutes >= 0",
+            name="ck_policy_checkin_window",
+        ),
+        CheckConstraint("max_strikes > 0", name="ck_policy_max_strikes"),
+        CheckConstraint("suspension_days >= 0", name="ck_policy_suspension_days"),
+        CheckConstraint(
+            "max_active_waitlists_per_week >= 0",
+            name="ck_policy_waitlist_limit",
+        ),
+        CheckConstraint(
+            "prime_time_start_hour >= 0 AND prime_time_start_hour <= 23",
+            name="ck_policy_prime_start",
+        ),
+        CheckConstraint(
+            "prime_time_end_hour >= 1 AND prime_time_end_hour <= 24",
+            name="ck_policy_prime_end",
+        ),
+        CheckConstraint(
+            "prime_time_start_hour < prime_time_end_hour",
+            name="ck_policy_prime_order",
+        ),
+        CheckConstraint("cooldown_days >= 0", name="ck_policy_cooldown_days"),
+        CheckConstraint(
+            "unlock_voting_hours > 0",
+            name="ck_policy_unlock_voting_hours",
+        ),
+        CheckConstraint(
+            "unlock_min_yes_votes > 0",
+            name="ck_policy_unlock_min_votes",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(
+        Integer,
+        ForeignKey("communities.id"),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    booking_window_days = Column(Integer, default=7, nullable=False)
+    max_active_reservations_per_week = Column(Integer, default=2, nullable=False)
+    cancellation_limit_hours = Column(Integer, default=4, nullable=False)
+    checkin_window_minutes = Column(Integer, default=15, nullable=False)
+    max_strikes = Column(Integer, default=2, nullable=False)
+    suspension_days = Column(Integer, default=14, nullable=False)
+    max_active_waitlists_per_week = Column(Integer, default=3, nullable=False)
+    prime_time_start_hour = Column(Integer, default=18, nullable=False)
+    prime_time_end_hour = Column(Integer, default=21, nullable=False)
+    cooldown_days = Column(Integer, default=3, nullable=False)
+    unlock_voting_enabled = Column(Boolean, default=True, nullable=False)
+    unlock_voting_hours = Column(Integer, default=48, nullable=False)
+    unlock_min_yes_votes = Column(Integer, default=2, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    community = relationship("Community", back_populates="policy")
 
 class Household(Base):
     """

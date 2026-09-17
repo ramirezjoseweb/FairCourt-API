@@ -43,6 +43,26 @@ class FacilityOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+class CommunityPolicyOut(BaseModel):
+    community_id: int
+    booking_window_days: int
+    max_active_reservations_per_week: int
+    cancellation_limit_hours: int
+    checkin_window_minutes: int
+    max_strikes: int
+    suspension_days: int
+    max_active_waitlists_per_week: int
+    prime_time_start_hour: int
+    prime_time_end_hour: int
+    cooldown_days: int
+    unlock_voting_enabled: bool
+    unlock_voting_hours: int
+    unlock_min_yes_votes: int
+
+    class Config:
+        from_attributes = True
+
 # Clase de la petición de reserva 
 class CreateReservationIn(BaseModel): 
     facility_id: int

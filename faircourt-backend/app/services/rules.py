@@ -1,23 +1,27 @@
 from __future__ import annotations
 from email import message
 from app.security import utcnow
-from app.models import Household
+from app.models import CommunityPolicy, Household
 from app.models import Facility, WaitlistEntry, Reservation, ReservationStatus
 
 from datetime import timedelta, datetime, time 
 
 from sqlalchemy.orm import Session 
 
-from app.config import settings
 from app.models import Reservation, ReservationStatus
 from app.services.audit import log_event
 from app.services.notifications import notify_household, create_notification
+from app.services.policies import get_community_policy
 
-def is_within_booking_window(start_at, now) -> bool: 
+def is_within_booking_window(
+    start_at,
+    now,
+    policy: CommunityPolicy,
+) -> bool:
     """
     Comprueba si la reserva está dentro de la ventana de reserva.
     """
-    max_date = now + timedelta(days=settings.BOOKING_WINDOW_DAYS) 
+    max_date = now + timedelta(days=policy.booking_window_days)
     return now <= start_at <= max_date # ahora debe ser menor o igual a la fecha de inicio y la fecha de inicio debe ser menor o igual a la fecha maxima
 
 def count_active_reservations_this_week(db: Session, household_id: int, facility_id: int, start_at):
@@ -54,11 +58,15 @@ def slot_is_free(db: Session, facility_id: int, start_at) -> bool:
 
     return existing is None 
 
-def can_cancel_reservation(start_at, now) -> bool: 
+def can_cancel_reservation(
+    start_at,
+    now,
+    policy: CommunityPolicy,
+) -> bool:
     """
     Comprueba si la reserva se puede cancelar.
     """
-    limit = start_at - timedelta(hours=settings.CANCELLATION_LIMIT_HOURS) # Calcula el limite de cancelacion.
+    limit = start_at - timedelta(hours=policy.cancellation_limit_hours)
     return now <= limit # ahora debe ser menor o igual al limite
 
 def generate_daily_slots(target_date, facility: Facility):
@@ -115,6 +123,7 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
     facility = db.get(Facility, facility_id)
     if not facility:
         return None
+    policy = get_community_policy(db, facility.community_id)
 
     waiting_entries = (
         db.query(WaitlistEntry)
@@ -152,7 +161,7 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
             continue
  
         weekly_count = count_active_reservations_this_week(db, household.id, facility_id, start_at)
-        if weekly_count >= settings.MAX_ACTIVE_RESERVATIONS_PER_WEEK: # Si la vivienda tiene el máximo de reservas activas esta semana
+        if weekly_count >= policy.max_active_reservations_per_week:
             entry.status = "DROPPED" # La marcamos como eliminada
 
             log_event(
@@ -171,7 +180,13 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
         if not slot_is_free(db, facility_id, start_at):
             return None # Si la franja horaria no está libre, devolvemos None
 
-        on_cooldown, _ = household_is_on_cooldown_for_slot(db, household.id, facility_id, start_at)
+        on_cooldown, _ = household_is_on_cooldown_for_slot(
+            db,
+            household.id,
+            facility_id,
+            start_at,
+            policy,
+        )
         if on_cooldown:
             entry.status = "DROPPED" 
 
@@ -197,6 +212,8 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
             end_at = start_at + timedelta(minutes=entry.facility.slot_duration_minutes),
             status = ReservationStatus.ACTIVE.value, 
             created_at = now, 
+            prime_time = is_prime_time(start_at, policy),
+            cooldown_group = get_cooldown_group(start_at, policy),
         )
 
         db.add(reservation) # Añadimos la reserva a la base de datos 
@@ -250,6 +267,8 @@ def can_household_book_slot(db: Session, household, facility_id: int, start_at, 
         print("RETURN -> HOUSEHOLD_INACTIVE (is_active=False)")
         return False, "HOUSEHOLD_INACTIVE"
 
+    policy = get_community_policy(db, household.community_id)
+
     if household.suspended_until and household.suspended_until > now:
         print("RETURN -> HOUSEHOLD_SUSPENDED")
         return False, "HOUSEHOLD_SUSPENDED"
@@ -258,7 +277,7 @@ def can_household_book_slot(db: Session, household, facility_id: int, start_at, 
         print("RETURN -> PAST_SLOT")
         return False, "PAST_SLOT"
 
-    if not is_within_booking_window(start_at, now):
+    if not is_within_booking_window(start_at, now, policy):
         print("RETURN -> OUTSIDE_BOOKING_WINDOW")
         return False, "OUTSIDE_BOOKING_WINDOW"
 
@@ -269,14 +288,20 @@ def can_household_book_slot(db: Session, household, facility_id: int, start_at, 
     weekly_count = count_active_reservations_this_week(db, household.id, facility_id, start_at)
     print("weekly_count =", weekly_count)
 
-    if weekly_count >= settings.MAX_ACTIVE_RESERVATIONS_PER_WEEK:
+    if weekly_count >= policy.max_active_reservations_per_week:
         print("RETURN -> WEEKLY_LIMIT_REACHED")
         return False, "WEEKLY_LIMIT_REACHED"
 
     if household.suspended_until and household.suspended_until > now:
         return False, "HOUSEHOLD_SUSPENDED"
 
-    on_cooldown, cooldown_group = household_is_on_cooldown_for_slot(db, household.id, facility_id, start_at)
+    on_cooldown, cooldown_group = household_is_on_cooldown_for_slot(
+        db,
+        household.id,
+        facility_id,
+        start_at,
+        policy,
+    )
     if on_cooldown:
         return False, "COOLDOWN_ACTIVE"
 
@@ -344,6 +369,8 @@ def can_household_join_waitlist(db: Session, household, facility_id: int, start_
         print("RETURN -> HOUSEHOLD_INACTIVE (is_active=False)")
         return False, "HOUSEHOLD_INACTIVE"
 
+    policy = get_community_policy(db, household.community_id)
+
     if household.suspended_until and household.suspended_until > now:
         print("RETURN -> HOUSEHOLD_SUSPENDED")
         return False, "HOUSEHOLD_SUSPENDED"
@@ -352,7 +379,7 @@ def can_household_join_waitlist(db: Session, household, facility_id: int, start_
         print("RETURN -> PAST_SLOT")
         return False, "PAST_SLOT"
 
-    if not is_within_booking_window(start_at, now):
+    if not is_within_booking_window(start_at, now, policy):
         print("RETURN -> OUTSIDE_BOOKING_WINDOW")
         return False, "OUTSIDE_BOOKING_WINDOW"
 
@@ -369,16 +396,20 @@ def can_household_join_waitlist(db: Session, household, facility_id: int, start_
         return False, "ALREADY_IN_WAITLIST"
 
     weekly_waitlist_count = count_active_waitlist_for_household(db, household.id, facility_id, start_at)
-    if weekly_waitlist_count >= settings.MAX_ACTIVE_WAITLISTS_PER_WEEK: 
+    if weekly_waitlist_count >= policy.max_active_waitlists_per_week:
         return False, "WAITLIST_WEEKLY_LIMIT_REACHED"
 
     weekly_count = count_active_reservations_this_week(db, household.id, facility_id, start_at)
-    if weekly_count >= settings.MAX_ACTIVE_RESERVATIONS_PER_WEEK:
+    if weekly_count >= policy.max_active_reservations_per_week:
         return False, "WEEKLY_LIMIT_REACHED"
 
     return True, None
 
-def can_checkin_reservation(reservation, now) -> tuple[bool, str | None]: 
+def can_checkin_reservation(
+    reservation,
+    now,
+    policy: CommunityPolicy,
+) -> tuple[bool, str | None]:
     """
     Comprueba si una reserva puede hacer check-in.
 
@@ -399,7 +430,9 @@ def can_checkin_reservation(reservation, now) -> tuple[bool, str | None]:
     if now > reservation.end_at: # Si la hora actual es mayor a la hora de fin de la reserva porque no se puede hacer check-in después de la hora de fin
         return False, "TOO_LATE" # La reserva ha expirado
 
-    checkin_deadline = reservation.start_at + timedelta(minutes=settings.CHECKIN_WINDOW_MINUTES) # Calcula la fecha limite para hacer check-in
+    checkin_deadline = reservation.start_at + timedelta(
+        minutes=policy.checkin_window_minutes
+    )
     if now > checkin_deadline: # Si la hora actual es mayor a la fecha limite para hacer check-in
         return False, "TOO_LATE" # La reserva ha expirado
 
@@ -419,7 +452,11 @@ def get_effective_checkin_start(reservation: Reservation):
 
     return reservation.start_at
 
-def is_reservation_no_show(reservation, now) -> bool:
+def is_reservation_no_show(
+    reservation,
+    now,
+    policy: CommunityPolicy,
+) -> bool:
     """ Determina si una reserva debe considerarse no-show. 
     Reglas: 
         - sigue ACTIVE
@@ -433,7 +470,7 @@ def is_reservation_no_show(reservation, now) -> bool:
         return False
 
     effective_start = get_effective_checkin_start(reservation)
-    deadline = effective_start + timedelta(minutes=settings.CHECKIN_WINDOW_MINUTES)  
+    deadline = effective_start + timedelta(minutes=policy.checkin_window_minutes)
 
     return now > deadline # Si la hora actual es mayor a la fecha limite para hacer check-in, la reserva es no-show
 
@@ -451,6 +488,8 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
 
     if not household:
         return None
+
+    policy = get_community_policy(db, reservation.community_id)
 
     suspension_applied = False
 
@@ -470,8 +509,8 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
         household.strikes += 1
 
     # Aplicamos suspensión solo si alcanza el límite.
-    if not was_promoted_from_waitlist and household.strikes >= settings.MAX_STRIKES:
-        household.suspended_until = now + timedelta(days=settings.SUSPENSION_DAYS)
+    if not was_promoted_from_waitlist and household.strikes >= policy.max_strikes:
+        household.suspended_until = now + timedelta(days=policy.suspension_days)
         suspension_applied = True
 
     db.commit()
@@ -568,33 +607,42 @@ def apply_no_show_penalty(db: Session, reservation: Reservation, now):
 
     return household
 
-def is_prime_time(start_at) -> bool: 
+def is_prime_time(start_at, policy: CommunityPolicy) -> bool:
     """ 
     Determina si una franja pertenece a prime time
     """
-    return settings.PRIME_TIME_START_HOUR <= start_at.hour < settings.PRIME_TIME_END_HOUR # Devuelve True si la franja pertenece a prime time, False si no
+    return policy.prime_time_start_hour <= start_at.hour < policy.prime_time_end_hour
 
-def get_cooldown_group(start_at) -> str | None: 
+def get_cooldown_group(
+    start_at,
+    policy: CommunityPolicy,
+) -> str | None:
     """ 
     Devuelve el grupo de cooldown de una franja
     Solo aplica a franjas prime time
     """
-    if not is_prime_time(start_at): 
+    if not is_prime_time(start_at, policy):
         return None
     return f"{start_at.hour:02d}:00" # Devuelve la franja en formato HH:00
 
-def household_is_on_cooldown_for_slot(db: Session, household_id, facility_id: int, start_at) -> tuple [bool, str | None]:
+def household_is_on_cooldown_for_slot(
+    db: Session,
+    household_id,
+    facility_id: int,
+    start_at,
+    policy: CommunityPolicy,
+) -> tuple[bool, str | None]:
     """
     Comprueba si una vivienda está en cooldown para la franja solicitada.
 
     La regla se aplica sobre reservas activas o ya disfrutadas/no-show/canceladas
     creadas dentro de la ventana de cooldown para el mismo grupo horario.
     """
-    cooldown_group = get_cooldown_group(start_at) # obtiene el grupo de cooldown de la franja
+    cooldown_group = get_cooldown_group(start_at, policy)
     if not cooldown_group: 
         return False, None # No hay cooldown si no es prime time
     
-    cooldown_since = start_at - timedelta(days=settings.COOLDOWN_DAYS) # Calcula la fecha desde la que se aplica el cooldown
+    cooldown_since = start_at - timedelta(days=policy.cooldown_days)
      
     existing = ( # si existe una reserva con el mismo grupo de cooldown y dentro de la ventana de cooldown
         db.query(Reservation)

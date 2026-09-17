@@ -23,6 +23,7 @@ from app.routers.audit import router as audit_router
 from app.routers.unlock import router as unlock_router
 from app.routers.notifications import router as notifications_router
 from app.routers.facilities import router as facilities_router
+from app.routers.community import router as community_router
 
 
 from .db import engine
@@ -58,6 +59,7 @@ app.include_router(audit_router)
 app.include_router(unlock_router)
 app.include_router(notifications_router)
 app.include_router(facilities_router)
+app.include_router(community_router)
 
 @app.on_event("startup") 
 def on_startup(): 

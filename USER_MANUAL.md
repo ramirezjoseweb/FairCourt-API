@@ -80,6 +80,9 @@ como el email, hora de comienzo, nuevos strikes, etc.
 En este apartado de la aplicación, se realizan algunas acciones 
 importantes. En esta se incluyen el sistema de votaciones ligeras sobre 
 desbloqueos y la creación de propuestas de desbloqueo para tu propia vivienda. 
+Esta función puede ser desactivada por la comunidad; en ese caso, los
+desbloqueos se gestionarán administrativamente y no se podrán crear ni votar
+propuestas desde la aplicación.
 Para realizar la segunda acción tu cuenta debe de estar suspendida y el sistema 
 te avisa de cuando puedes realizar esta propuesta. 
 Por otro lado, en la parte inferior de la página podemos ver todas las propuestas 
