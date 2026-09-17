@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import require_resident
 from app.models import UnlockProposal, UnlockVote, Household, User
 from app.schemas import(
     UnlockProposalIn, 
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/unlock", tags=["unlock"])
 @router.get("/proposals", response_model=list[UnlockProposalOut])
 def list_unlock_proposals(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_resident),
 ):
     """
     Lista las propuestas de desbloqueo existentes.
@@ -73,7 +73,7 @@ def list_unlock_proposals(
 def create_unlock_proposal(
     payload: UnlockProposalIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_resident),
 ):
     """
     Crea una propuesta de desbloqueo excepcional para la vivienda autenticada.
@@ -167,7 +167,7 @@ def cast_unlock_vote(
     proposal_id: int, 
     payload: UnlockVoteIn, 
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user), 
+    current_user = Depends(require_resident),
 ): 
     # Convertimos el voto a mayúsculas
     vote_value = payload.vote.upper() 

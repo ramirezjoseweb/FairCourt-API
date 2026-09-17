@@ -9,7 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db  # Dependencia que proporciona una sesión de base de datos
-from app.models import Community, Household, User, AuthOTP, normalize_household_code
+from app.models import (
+    AuthOTP,
+    Community,
+    Household,
+    User,
+    UserRole,
+    normalize_household_code,
+)
 from app.schemas import RequestOTPIn, VerifyOTPIn, TokenOut, MessageOut  # Esquemas Pydantic para validar entradas/salidas
 from app.security import gen_otp, hash_secret, verify_secret, utcnow, create_access_token  # Utilidades de seguridad
 from app.config import settings  # Configuración centralizada de la aplicación
@@ -51,9 +58,12 @@ def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
     existing_user_for_house = db.query(User).filter(
         User.household_id == household.id,
         User.community_id == community.id,
+        User.role == UserRole.RESIDENT.value,
     ).first()
 
     if existing_user_for_house:
+        if not existing_user_for_house.is_active:
+            raise HTTPException(status_code=403, detail="La cuenta está desactivada.")
         # Si la vivienda ya tiene usuario, solo permitimos login con ese mismo email
         # Esto evita que otra persona registre la misma vivienda.
         if existing_user_for_house.email.lower() != payload.email.lower():
@@ -81,6 +91,8 @@ def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
         # se crea el usuario asociado a esa vivienda.
         user = User(
             email=str(payload.email).lower(),
+            role=UserRole.RESIDENT.value,
+            is_active=True,
             community_id=community.id,
             household_id=household.id
         )
@@ -103,6 +115,7 @@ def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
     record = AuthOTP(
         community_id=community.id,
         email=user.email,
+        purpose="RESIDENT",
         otp_hash=otp_hash,
         expires_at=expires_at
     )
@@ -153,6 +166,7 @@ def verify_otp(payload: VerifyOTPIn, db: Session = Depends(get_db)):
         db.query(AuthOTP)
         .filter(AuthOTP.email == email)
         .filter(AuthOTP.community_id == community.id)
+        .filter(AuthOTP.purpose == "RESIDENT")
         #.filter(AuthOTP.used_at.is_(None))  # OTP no utilizado
         .order_by(AuthOTP.created_at.desc())  # Obtener el más reciente
         .first()
@@ -191,6 +205,8 @@ def verify_otp(payload: VerifyOTPIn, db: Session = Depends(get_db)):
         db.query(User)
         .filter(User.email == email)
         .filter(User.community_id == community.id)
+        .filter(User.role == UserRole.RESIDENT.value)
+        .filter(User.is_active.is_(True))
         .first()
     )
     if not user:
@@ -214,6 +230,7 @@ def verify_otp(payload: VerifyOTPIn, db: Session = Depends(get_db)):
     token, expires_at = create_access_token(
         subject=email,
         community_id=community.id,
+        role=UserRole.RESIDENT.value,
     )
 
     # Respuesta con el token de autenticación

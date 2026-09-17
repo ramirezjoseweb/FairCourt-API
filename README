@@ -20,6 +20,8 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 - Autenticación JWT
 - Aislamiento multi-comunidad con viviendas e instalaciones propias
 - Reglas de reserva y equidad independientes por comunidad
+- Roles separados de administrador de plataforma y residente
+- Selector administrativo de comunidad con auditoría privada
 - Gestión multipista y de espacios comunitarios
 - Catálogo priorizado con Pádel y Tenis en primer lugar
 - Reserva y cancelación de franjas horarias
@@ -112,6 +114,25 @@ las votaciones de desbloqueo se evalúan siempre con la política de la comunida
 autenticada. Al crear una comunidad mediante `seed.py` se genera una política
 con los valores iniciales de FairCourt. La política efectiva puede consultarse,
 con autenticación, en `GET /community/policy`.
+
+## Acceso administrativo
+
+FairCourt mantiene una sola cuenta residencial por vivienda. El administrador
+de plataforma es una identidad global sin vivienda asociada y utiliza un token
+distinto, por lo que no puede reservar ni ejecutar acciones residenciales.
+
+Después de aplicar las migraciones, crea explícitamente el administrador desde
+`faircourt-backend`:
+
+```powershell
+alembic upgrade head
+python create_platform_admin.py --email admin@ejemplo.es
+```
+
+El acceso está disponible en `http://localhost:5173/admin`. Tras verificar el
+OTP, el panel obliga a seleccionar la comunidad que se va a gestionar y muestra
+permanentemente ese contexto. Los accesos y selecciones se guardan en una
+auditoría administrativa que no se expone en la auditoría residencial.
 
 ## Datos de demostración
 Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1", dentro del portal `faircourt`.

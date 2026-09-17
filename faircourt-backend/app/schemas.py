@@ -16,6 +16,15 @@ class VerifyOTPIn(BaseModel):
     email: EmailStr
     otp: str = Field(min_length=4, max_length=12)
 
+
+class AdminRequestOTPIn(BaseModel):
+    email: EmailStr
+
+
+class AdminVerifyOTPIn(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=4, max_length=12)
+
 # Clase del token de autenticación 
 class TokenOut(BaseModel):
     access_token: str
@@ -25,6 +34,22 @@ class TokenOut(BaseModel):
 # Clase del mensaje de respuesta 
 class MessageOut(BaseModel):
     message: str
+
+
+class AdminMeOut(BaseModel):
+    id: int
+    email: str
+    role: str
+
+
+class CommunitySummaryOut(BaseModel):
+    id: int
+    slug: str
+    name: str
+    timezone: str
+    is_active: bool
+    household_count: int
+    facility_count: int
 
 
 class FacilityOut(BaseModel):

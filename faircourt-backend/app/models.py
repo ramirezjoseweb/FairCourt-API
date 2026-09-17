@@ -55,6 +55,16 @@ class ReservationStatus(str, enum.Enum):
     RELEASED = "RELEASED"
 
 
+class UserRole(str, enum.Enum):
+    RESIDENT = "resident"
+    PLATFORM_ADMIN = "platform_admin"
+
+
+class AuditVisibility(str, enum.Enum):
+    RESIDENT = "resident"
+    ADMIN = "admin"
+
+
 class Community(Base):
     """Frontera de aislamiento de datos de una comunidad de propietarios."""
 
@@ -212,13 +222,22 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("household_id", name="uq_users_household_id"),  # 1 usuario por vivienda
+        CheckConstraint(
+            "(role = 'resident' AND community_id IS NOT NULL "
+            "AND household_id IS NOT NULL) OR "
+            "(role = 'platform_admin' AND community_id IS NULL "
+            "AND household_id IS NULL)",
+            name="ck_users_role_scope",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
 
-    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
-    household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
+    role = Column(String, default=UserRole.RESIDENT.value, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=True)
+    household_id = Column(Integer, ForeignKey("households.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     community = relationship("Community", back_populates="users")
@@ -238,8 +257,9 @@ class AuthOTP(Base):
     __tablename__ = "auth_otps"
 
     id = Column(Integer, primary_key=True, index=True)
-    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=True)
     email = Column(String, index=True, nullable=False)
+    purpose = Column(String, default="RESIDENT", nullable=False, index=True)
     otp_hash = Column(String, nullable=False)
 
     expires_at = Column(DateTime, nullable=False)
@@ -350,10 +370,22 @@ class WaitlistEntry(Base):
 
 class AuditLog(Base): 
     __tablename__ = "audit_log" 
+    __table_args__ = (
+        CheckConstraint(
+            "visibility IN ('resident', 'admin')",
+            name="ck_audit_log_visibility",
+        ),
+    )
     
     id = Column(Integer, primary_key=True, index=True)
-    community_id = Column(Integer, ForeignKey("communities.id"), nullable=False, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id"), nullable=True, index=True)
     event = Column(String, nullable=False, index=True)
+    visibility = Column(
+        String,
+        default=AuditVisibility.RESIDENT.value,
+        nullable=False,
+        index=True,
+    )
 
     household_id = Column(Integer, ForeignKey("households.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

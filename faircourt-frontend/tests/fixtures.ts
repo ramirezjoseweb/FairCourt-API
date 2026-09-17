@@ -238,6 +238,26 @@ export async function setup(
     fail: new Map<string, number>(),
     delays: new Map<string, number>(),
     networkDown: false,
+    adminCommunities: [
+      {
+        id: 1,
+        slug: "gran-parque",
+        name: "Gran Parque",
+        timezone: "Europe/Madrid",
+        is_active: true,
+        household_count: 500,
+        facility_count: 3,
+      },
+      {
+        id: 2,
+        slug: "community-b",
+        name: "Comunidad B",
+        timezone: "Europe/Madrid",
+        is_active: true,
+        household_count: 240,
+        facility_count: 1,
+      },
+    ],
   };
   if (options.authenticated !== false)
     await page.addInitScript(() => {
@@ -283,7 +303,51 @@ export async function setup(
       return;
     }
     let data: unknown;
-    if (path === "/auth/request-otp")
+    if (path === "/admin/auth/request-otp")
+      data = { message: "Si el correo está autorizado, se ha generado un código de acceso." };
+    else if (path === "/admin/auth/verify-otp")
+      data = {
+        access_token: "admin-verified-token",
+        token_type: "bearer",
+        expires_at: stamp(23),
+      };
+    else if (path === "/admin/me")
+      data = { id: 90, email: "admin@faircourt.es", role: "platform_admin" };
+    else if (path === "/admin/communities") data = state.adminCommunities;
+    else if (path.match(/^\/admin\/communities\/\d+\/select$/))
+      data = state.adminCommunities.find(
+        (community) => community.id === Number(path.split("/")[3]),
+      );
+    else if (path.match(/^\/admin\/communities\/\d+\/policy$/))
+      data = {
+        community_id: Number(path.split("/")[3]),
+        booking_window_days: 7,
+        max_active_reservations_per_week: 2,
+        cancellation_limit_hours: 4,
+        checkin_window_minutes: 15,
+        max_strikes: 2,
+        suspension_days: 14,
+        max_active_waitlists_per_week: 3,
+        prime_time_start_hour: 18,
+        prime_time_end_hour: 21,
+        cooldown_days: 3,
+        unlock_voting_enabled: true,
+        unlock_voting_hours: 48,
+        unlock_min_yes_votes: 2,
+      };
+    else if (path.match(/^\/admin\/communities\/\d+\/audit$/))
+      data = [
+        {
+          id: 40,
+          event: "ADMIN_COMMUNITY_SELECTED",
+          user_id: 90,
+          household_id: null,
+          reservation_id: null,
+          metadata_json: JSON.stringify({ community_slug: "gran-parque" }),
+          created_at: stamp(8),
+        },
+      ];
+    else if (path === "/auth/request-otp")
       data = { message: "Código de acceso generado." };
     else if (path === "/auth/verify-otp")
       data = {

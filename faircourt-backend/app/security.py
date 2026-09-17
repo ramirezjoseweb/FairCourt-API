@@ -27,12 +27,16 @@ def hash_secret(value: str) -> str: # hash_secret es una función que hashea una
 def verify_secret(value: str, hashed: str) -> bool: # verify_secret es una función que verifica si una contraseña es correcta
     return pwd_context.verify(value, hashed)
 
-def create_access_token(subject: str, community_id: int | None = None) -> tuple[str, datetime]: # create_access_token es una función que crea un token de acceso
+def create_access_token(
+    subject: str,
+    community_id: int | None = None,
+    role: str = "resident",
+) -> tuple[str, datetime]:
     """
     Crea un JWT donde 'sub' identifica al usuario (aquí usamos el email).
     """
     expire = utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_MINUTES) # timedelta es una función que crea una diferencia de tiempo
-    payload = {"sub": subject, "exp": expire} # payload con subject y expiration time
+    payload = {"sub": subject, "role": role, "exp": expire}
     if community_id is not None:
         payload["community_id"] = community_id
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALG) # jwt.encode es una función que codifica el payload en un token

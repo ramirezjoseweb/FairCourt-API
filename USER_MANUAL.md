@@ -26,6 +26,23 @@ El mismo código de vivienda puede existir en dos comunidades distintas sin
 compartir cuenta, reservas, listas de espera, sanciones, auditoría o
 notificaciones.
 
+Cada vivienda mantiene una única cuenta de residente. Los límites, reservas y
+sanciones se aplican a esa vivienda y no existen cuentas residenciales
+adicionales con las que multiplicar turnos.
+
+## Acceso del administrador de plataforma
+
+El administrador accede desde `/admin` con su correo administrativo y un OTP.
+Esta cuenta no está vinculada a una vivienda y no puede reservar instalaciones.
+Después del acceso se muestra un selector con todas las comunidades. Al elegir
+una, la cabecera indica permanentemente **Administrando: nombre de comunidad**
+para evitar operar sobre el entorno equivocado.
+
+La sesión administrativa y la sesión residencial se almacenan por separado.
+Las acciones administrativas se registran en una auditoría privada. Los
+residentes solo pueden consultar el historial de su propia vivienda y nunca
+ven correos administrativos, notas internas ni motivos sensibles.
+
 ## Apariencia clara y oscura
 FairCourt utiliza inicialmente el tema claro u oscuro configurado en el
 dispositivo. El botón con forma de luna o sol permite cambiarlo tanto en la

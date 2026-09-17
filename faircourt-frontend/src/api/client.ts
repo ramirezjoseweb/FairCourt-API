@@ -7,25 +7,23 @@ export function getToken(): string | null {
   return localStorage.getItem("faircourt_token");
 }
 
-//Función auxiliar para hacer las peticiones a la API.
-export async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
-  // Devuelve una promesa genérica de tipo T.
-  const token = getToken();
+export function getAdminToken(): string | null {
+  return localStorage.getItem("faircourt_admin_token");
+}
 
-  // 1. Construye la URL completa de la petición
+async function requestWithToken<T>(
+  path: string,
+  options: RequestInit,
+  token: string | null,
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      // 2. Propaga las opciones originales (method, body, etc.)
       ...options,
-      // 3. Asegura el Content-Type
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}), // Si existe token, se añade al header. (Operador ternario)
-        ...(options.headers || {}), // Combina las cabeceras originales con las nuestras. (Operador ternario)
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
       },
     });
   } catch (error) {
@@ -33,14 +31,25 @@ export async function apiRequest<T>(
     throw error;
   }
   reportReachability(true);
-  // 4. Decodifica la respuesta.
   const data = await response.json().catch(() => null);
-  // 5. Si la respuesta no es OK, lanza un error.
   if (!response.ok) {
-    // 6. Construye el mensaje de error a partir de la respuesta o del status HTTP.
     const message = data?.detail || `Error HTTP ${response.status}`;
     throw new Error(message);
   }
-  // 7. Devuelve los datos decodificados.
   return data as T;
+}
+
+//Función auxiliar para hacer las peticiones a la API.
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  return requestWithToken(path, options, getToken());
+}
+
+export async function adminApiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  return requestWithToken(path, options, getAdminToken());
 }

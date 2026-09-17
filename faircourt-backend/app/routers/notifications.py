@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import require_resident
 from app.models import Notification, User
 from app.schemas import NotificationOut
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @router.get("/me", response_model=list[NotificationOut])
 def list_my_notifications(
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user) 
+    current_user: User = Depends(require_resident)
 ): 
     """ 
     Devuelve las notificaciones del usuario autenticado
@@ -29,7 +29,7 @@ def list_my_notifications(
 def mark_notification_as_read(
     notification_id: int, 
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(require_resident),
 ): 
     """ 
     Marca una notificación como leida

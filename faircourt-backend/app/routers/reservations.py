@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import require_resident
 from app.models import Facility, Reservation, ReservationStatus, Household, User, WaitlistEntry
 from app.services.audit import log_event
 from app.services.notifications import notify_household
@@ -44,7 +44,7 @@ router = APIRouter(prefix="/reservations", tags=["reservations"])
 def create_reservation(
     payload: CreateReservationIn, # payload es la petición de reserva y CreateReservationIn es la clase de la petición de reserva 
     db: Session = Depends(get_db), # db es la sesión de la base de datos 
-    current_user: User = Depends(get_current_user), # current_user es el usuario autenticado 
+    current_user: User = Depends(require_resident), # current_user es el usuario autenticado
 ): 
     """
     Crea una reserva para la vivienda del usuario autenticado.
@@ -196,7 +196,7 @@ def create_reservation(
 @router.get("/me", response_model=list[ReservationOut])
 def list_my_reservations(
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_resident)
 ):
     """
     Lista las reservas del usuario autenticado ordenadas por fecha de inicio.
@@ -219,7 +219,7 @@ def cancel_reservation(
     # Pillamos el id, la sesion y el usuario autenticado 
     reservation_id: int, 
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(require_resident),
 ): 
     """
     Cancela una reserva de la vivienda autenticada.
@@ -306,7 +306,7 @@ def get_slots(
     day: date, 
     facility_id: int,
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(require_resident),
 ): 
     """
     Devuelve las franjas horarias de un día y su disponibilidad enriquecida.
@@ -402,7 +402,7 @@ def get_slots(
 def join_waitlist(
     payload: WaitlistIn,
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user) 
+    current_user: User = Depends(require_resident)
 ): 
     """
     Apunta la vivienda autenticada a la lista de espera de una franja
@@ -540,7 +540,7 @@ def join_waitlist(
 def leave_waitlist(
     entry_id: int, 
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(require_resident),
 ): 
     """
     Permite a la vivienda autenticada abandonar una lista de espera
@@ -584,7 +584,7 @@ def leave_waitlist(
 def get_checkin_qr(
     reservation_id: int, 
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user), 
+    current_user: User = Depends(require_resident),
 ): 
     """
     Genera la URL firmada que se incluirá en el QR de check-in.
@@ -677,7 +677,7 @@ def checkin_scan(
 @router.post("/process-no-shows", response_model=NoShowProcessOut)
 def process_no_shows(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_resident),
 ): 
     """
     Procesa reservas activas cuya ventana de check-in ya expiró sin check-in.

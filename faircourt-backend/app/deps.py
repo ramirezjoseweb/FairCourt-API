@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.models import User
+from app.models import User, UserRole
 
 # Esquema Bearer para que FastAPI/Swagger sepan que usamos Authorization: Bearer <token>
 bearer_scheme = HTTPBearer() # crea el boton Authorize en Swagger/OpenAPI
@@ -42,16 +42,30 @@ def get_current_user(
         ) 
         email = payload.get("sub") # el claim 'sub' es el email del usuario
         token_community_id = payload.get("community_id")
+        token_role = payload.get("role", UserRole.RESIDENT.value)
         if not email: # si no hay email en el claim 'sub' se lanza una excepción
             raise unauthorized
     except JWTError: # si hay un error al decodificar el token se lanza una excepción
         raise unauthorized
     
-    query = db.query(User).filter(User.email == email)
-    if token_community_id is not None:
-        query = query.filter(User.community_id == token_community_id)
-    user = query.first() # busca el usuario y valida el ámbito incluido en el token
+    user = db.query(User).filter(User.email == email).first()
     if not user: 
+        raise unauthorized
+    if not user.is_active or user.role != token_role:
+        raise unauthorized
+
+    if user.role == UserRole.PLATFORM_ADMIN.value:
+        if (
+            token_community_id is not None
+            or user.community_id is not None
+            or user.household_id is not None
+        ):
+            raise unauthorized
+        return user
+
+    if user.role != UserRole.RESIDENT.value:
+        raise unauthorized
+    if token_community_id != user.community_id:
         raise unauthorized
     if not user.community or not user.community.is_active:
         raise HTTPException(
@@ -61,3 +75,25 @@ def get_current_user(
     if not user.household or user.household.community_id != user.community_id:
         raise unauthorized
     return user
+
+
+def require_resident(current_user: User = Depends(get_current_user)) -> User:
+    """Impide que una identidad administrativa use operaciones residenciales."""
+    if current_user.role != UserRole.RESIDENT.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta operación requiere una cuenta residencial.",
+        )
+    return current_user
+
+
+def require_platform_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Autoriza exclusivamente al administrador global de FairCourt."""
+    if current_user.role != UserRole.PLATFORM_ADMIN.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta operación requiere permisos de administrador de plataforma.",
+        )
+    return current_user

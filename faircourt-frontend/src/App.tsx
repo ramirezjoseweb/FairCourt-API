@@ -16,8 +16,23 @@ import { useTheme } from "./hooks/useTheme";
 import { retryConnection } from "./utils/networkStatus";
 import { getCommunitySlug } from "./utils/community";
 import { clearCommunityCache } from "./utils/offlineCache";
+import { AdminApp } from "./components/AdminApp";
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
+  if (window.location.pathname.startsWith("/admin")) {
+    return <AdminApp theme={theme} onToggleTheme={toggleTheme} />;
+  }
+  return <ResidentApp theme={theme} onToggleTheme={toggleTheme} />;
+}
+
+function ResidentApp({
+  theme,
+  onToggleTheme,
+}: {
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
+}) {
   const [token, setToken] = useState(() =>
     localStorage.getItem("faircourt_token"),
   );
@@ -28,7 +43,6 @@ export default function App() {
   const isOnline = useOnlineStatus();
   const action = useAction();
   const [deliveryMessage, setDeliveryMessage] = useState("");
-  const { theme, toggleTheme } = useTheme();
   const communitySlug = getCommunitySlug();
   function logout() {
     clearCommunityCache();
@@ -40,7 +54,7 @@ export default function App() {
   }
   if (token)
     return (
-      <Dashboard onLogout={logout} theme={theme} onToggleTheme={toggleTheme} />
+      <Dashboard onLogout={logout} theme={theme} onToggleTheme={onToggleTheme} />
     );
   async function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,7 +105,7 @@ export default function App() {
       <section className="auth-access">
         <ThemeToggle
           theme={theme}
-          onToggle={toggleTheme}
+          onToggle={onToggleTheme}
           className="auth-theme-toggle"
         />
         <div className="auth-mobile-brand">

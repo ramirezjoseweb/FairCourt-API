@@ -4,7 +4,7 @@ from app.models import WaitlistEntry
 
 from fastapi import APIRouter, Depends
 
-from app.deps import get_current_user, get_db
+from app.deps import require_resident, get_db
 from app.models import User, Household
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ router = APIRouter(tags=["users"]) # APIRouter hace que los endpoints tengan un 
 @router.get("/me") 
 def read_me(
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_resident),
     ):
     """ Devuelve información básica del usuario autenticado
         Sirve para comprobar que el JWT funciona correctamente """

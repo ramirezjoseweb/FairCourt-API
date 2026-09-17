@@ -90,6 +90,54 @@ test("auth: community portal fixes the OTP request scope", async ({ page }) => {
     email: "resident-b@example.com",
   });
 });
+test("admin: separate OTP, community selector and private context", async ({
+  page,
+}) => {
+  const state = await setup(page, { authenticated: false });
+  await page.goto("/admin");
+  await expect(
+    page.getByRole("heading", { name: "Acceso de plataforma" }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Correo administrativo")
+    .fill("admin@faircourt.es");
+  await page
+    .getByRole("button", { name: "Solicitar acceso administrativo" })
+    .click();
+  expect(
+    state.requests.find((row) => row.path === "/admin/auth/request-otp")?.body,
+  ).toEqual({ email: "admin@faircourt.es" });
+  await page.getByLabel("Código de acceso").fill("123456");
+  await page.getByRole("button", { name: "Entrar al panel" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Elige la comunidad que vas a gestionar." }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Gran Parque" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Comunidad B" })).toBeVisible();
+  await page
+    .getByRole("article")
+    .filter({ hasText: "Gran Parque" })
+    .getByRole("button", { name: "Administrar comunidad" })
+    .click();
+
+  await expect(page.getByText("Administrando")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Gran Parque" })).toBeVisible();
+  await expect(page.getByText("Ventana de reserva")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Auditoría administrativa privada" }),
+  ).toBeVisible();
+  await expect(page.getByText("ADMIN_COMMUNITY_SELECTED")).toBeVisible();
+  expect(
+    state.requests.find((row) => row.path.endsWith("/select"))?.authorization,
+  ).toBe("Bearer admin-verified-token");
+  expect(
+    await page.evaluate(() => localStorage.getItem("faircourt_token")),
+  ).toBeNull();
+  expect(
+    await page.evaluate(() => localStorage.getItem("faircourt_admin_token")),
+  ).toBe("admin-verified-token");
+});
 test("appearance: system theme, manual toggle and persistence", async ({
   page,
 }) => {

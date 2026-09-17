@@ -29,11 +29,12 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 | PWA, recursos locales y apertura sin conexión | Manifiesto, iconos e interfaz de producción | pwa |
 | Navegación de escritorio y móvil con acceso a todas las secciones | Barra lateral y navegación inferior con menú Más | visual; accessibility |
 | Tema claro u oscuro, preferencia inicial del sistema y elección persistente | Selector de apariencia en acceso y barra superior | appearance; accessibility |
+| OTP administrativo separado, selección explícita de comunidad, política efectiva y auditoría privada | `/admin` y espacio de la comunidad seleccionada | admin |
 | Operación por teclado y contenido adaptable | Etiquetas, foco visible, enlace de salto, diálogos y movimiento reducido | accessibility; visual; responsive |
 
 ## Resultado de las comprobaciones
 
-- **33 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
+- **38 pruebas de navegador superadas** sobre la compilación de producción, con Microsoft Edge y respuestas de API controladas.
 - **Compilación y análisis estático correctos**, sin desactivar globalmente las reglas. Los archivos generados y los informes temporales quedan excluidos del análisis y de Git.
 - Nueve vistas capturadas a **375, 768 y 1440 píxeles**: acceso, OTP, inicio, disponibilidad, reservas, notificaciones, auditoría, desbloqueos y diálogo. Se comprueba ausencia de desbordamiento horizontal, contenido largo y navegación de teclado.
 - Auditoría automatizada de contraste y semántica en los temas claro y oscuro, en móvil y escritorio, más comprobaciones de foco y movimiento reducido.

@@ -96,3 +96,44 @@ test("accessibility: skip link and reduced motion", async ({ page }) => {
       .evaluate((el) => getComputedStyle(el).animationName),
   ).toBe("none");
 });
+
+for (const theme of ["light", "dark"] as const) {
+  for (const width of [375, 1440]) {
+    test(`accessibility: admin ${theme} at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.addInitScript((selectedTheme) => {
+        localStorage.setItem("faircourt_theme", selectedTheme);
+      }, theme);
+      await setup(page, { authenticated: false });
+      await page.goto("/admin");
+      async function check(name: string) {
+        const results = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze();
+        expect.soft(results.violations, name).toEqual([]);
+      }
+      await check("Acceso administrativo");
+      await page
+        .getByLabel("Correo administrativo")
+        .fill("admin@faircourt.es");
+      await page
+        .getByRole("button", { name: "Solicitar acceso administrativo" })
+        .click();
+      await page.getByLabel("Código de acceso").fill("123456");
+      await page.getByRole("button", { name: "Entrar al panel" }).click();
+      await expect(
+        page.getByRole("heading", {
+          name: "Elige la comunidad que vas a gestionar.",
+        }),
+      ).toBeVisible();
+      await check("Selector administrativo");
+      await page
+        .getByRole("article")
+        .filter({ hasText: "Gran Parque" })
+        .getByRole("button", { name: "Administrar comunidad" })
+        .click();
+      await check("Contexto administrativo");
+    });
+  }
+}

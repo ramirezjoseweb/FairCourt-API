@@ -18,6 +18,10 @@ correo y OTP. Para utilizar datos reales, inicia el backend siguiendo el README
 de la raíz. La ayuda para consultar el OTP en la terminal solo aparece en
 desarrollo.
 
+El acceso del administrador de plataforma está en
+http://127.0.0.1:5173/admin. Utiliza un OTP y un token distintos de los del
+residente; después muestra el selector de comunidad y el contexto activo.
+
 ## Comprobaciones
 
 ```powershell
@@ -35,7 +39,7 @@ $env:PW_CHANNEL = "chrome"
 npm run test:e2e
 ```
 
-El conjunto incluye 33 escenarios de acceso comunitario, reservas, listas de
+El conjunto incluye 38 escenarios de acceso comunitario y administrativo, reservas, listas de
 espera, asistencia, avisos, auditoría, contacto, red, accesibilidad y diseño
 adaptable. Las respuestas de la API están controladas dentro de los tests; no
 se crean reservas ni votos en la base de datos real.
