@@ -70,6 +70,15 @@ class AdminHouseholdUpdateIn(AdminHouseholdCreateIn):
     is_active: bool
 
 
+class AdminHouseholdAccessUpdateIn(BaseModel):
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+
 class AdminHouseholdOut(BaseModel):
     id: int
     community_id: int

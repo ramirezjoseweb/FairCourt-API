@@ -149,6 +149,15 @@ for (const theme of ["light", "dark"] as const) {
       ).toBeVisible();
       await check("Edición administrativa de viviendas");
       await page.keyboard.press("Escape");
+      await page
+        .getByRole("article", { name: "GRP0001", exact: true })
+        .getByRole("button", { name: "Gestionar acceso de GRP0001" })
+        .click();
+      await expect(
+        page.getByRole("dialog", { name: "Gestionar acceso de GRP0001" }),
+      ).toBeVisible();
+      await check("Gestión administrativa de acceso residencial");
+      await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Nueva instalación" }).click();
       await expect(
         page.getByRole("dialog", { name: "Nueva instalación" }),

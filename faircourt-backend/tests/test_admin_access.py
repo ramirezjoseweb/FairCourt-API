@@ -17,6 +17,7 @@ from app.deps import get_current_user, require_platform_admin, require_resident
 from app.models import (
     AuditLog,
     AuditVisibility,
+    AuthOTP,
     Community,
     CommunityPolicy,
     Facility,
@@ -37,6 +38,7 @@ from app.routers.admin import (
     select_admin_community,
     update_admin_facility,
     update_admin_household,
+    update_admin_household_access,
     update_admin_basic_policy,
     verify_admin_otp,
 )
@@ -45,11 +47,13 @@ from app.schemas import (
     AdminBasicPolicyUpdateIn,
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
+    AdminHouseholdAccessUpdateIn,
     AdminHouseholdUpdateIn,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
 )
 from app.security import create_access_token
+from app.security import hash_secret
 
 
 class AdminAccessTests(unittest.TestCase):
@@ -425,6 +429,109 @@ class AdminAccessTests(unittest.TestCase):
             events,
             ["ADMIN_HOUSEHOLD_ACTIVATED", "ADMIN_HOUSEHOLD_UPDATED"],
         )
+
+    def test_admin_reassigns_household_access_without_moving_history(self) -> None:
+        start_at = datetime.now() + timedelta(days=1)
+        reservation = Reservation(
+            community_id=self.community_a.id,
+            household_id=self.household.id,
+            facility_id=self.facility.id,
+            start_at=start_at,
+            end_at=start_at + timedelta(hours=1),
+            status="ACTIVE",
+        )
+        pending_otp = AuthOTP(
+            community_id=self.community_a.id,
+            email=self.resident.email,
+            purpose="RESIDENT",
+            otp_hash=hash_secret("123456"),
+            expires_at=datetime.now() + timedelta(minutes=10),
+        )
+        self.db.add_all([reservation, pending_otp])
+        self.db.commit()
+        resident_id = self.resident.id
+        old_token, _ = create_access_token(
+            subject=self.resident.email,
+            community_id=self.community_a.id,
+            role=UserRole.RESIDENT.value,
+        )
+
+        updated = update_admin_household_access(
+            community_id=self.community_a.id,
+            household_id=self.household.id,
+            payload=AdminHouseholdAccessUpdateIn(email="nuevo@example.com"),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(updated["resident_email"], "nuevo@example.com")
+        resident = self.db.get(User, resident_id)
+        self.assertEqual(resident.email, "nuevo@example.com")
+        self.assertEqual(resident.household_id, self.household.id)
+        self.assertTrue(resident.is_active)
+        self.assertEqual(self.db.get(Reservation, reservation.id).status, "ACTIVE")
+        self.assertIsNotNone(self.db.get(AuthOTP, pending_otp.id).used_at)
+
+        with self.assertRaises(HTTPException) as old_session:
+            get_current_user(
+                credentials=HTTPAuthorizationCredentials(
+                    scheme="Bearer",
+                    credentials=old_token,
+                ),
+                db=self.db,
+            )
+        self.assertEqual(old_session.exception.status_code, 401)
+
+        with self.assertRaises(HTTPException) as same_email:
+            update_admin_household_access(
+                community_id=self.community_a.id,
+                household_id=self.household.id,
+                payload=AdminHouseholdAccessUpdateIn(email="nuevo@example.com"),
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(same_email.exception.status_code, 409)
+
+        with self.assertRaises(HTTPException) as crossed:
+            update_admin_household_access(
+                community_id=self.community_b.id,
+                household_id=self.household.id,
+                payload=AdminHouseholdAccessUpdateIn(email="otro@example.com"),
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(crossed.exception.status_code, 404)
+
+        entries = read_private_admin_audit(
+            community_id=self.community_a.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(entries[0].event, "ADMIN_HOUSEHOLD_ACCESS_UPDATED")
+        self.assertNotIn("nuevo@example.com", entries[0].metadata_json)
+
+    def test_admin_assigns_access_to_unclaimed_household(self) -> None:
+        unclaimed = Household(
+            community_id=self.community_b.id,
+            code="B-SIN-CUENTA",
+        )
+        self.db.add(unclaimed)
+        self.db.commit()
+
+        updated = update_admin_household_access(
+            community_id=self.community_b.id,
+            household_id=unclaimed.id,
+            payload=AdminHouseholdAccessUpdateIn(email="asignado@example.com"),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(updated["resident_email"], "asignado@example.com")
+        self.assertEqual(unclaimed.user.email, "asignado@example.com")
+        entries = read_private_admin_audit(
+            community_id=self.community_b.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(entries[0].event, "ADMIN_HOUSEHOLD_ACCESS_ASSIGNED")
 
     def test_admin_updates_basic_policy_only_for_target_community(self) -> None:
         updated = update_admin_basic_policy(

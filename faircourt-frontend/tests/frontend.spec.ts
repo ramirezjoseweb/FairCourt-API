@@ -204,6 +204,43 @@ test("admin: separate OTP, community selector and private context", async ({
   await expect(renamedHousehold.getByText("Activa", { exact: true })).toBeVisible();
   await expect(page.getByText("ADMIN_HOUSEHOLD_ACTIVATED")).toBeVisible();
 
+  await renamedHousehold
+    .getByRole("button", { name: "Gestionar acceso de GRP0001-A" })
+    .click();
+  const accessDialog = page.getByRole("dialog", {
+    name: "Gestionar acceso de GRP0001-A",
+  });
+  await expect(accessDialog).toContainText("vecino@faircourt.es");
+  await accessDialog
+    .getByLabel("Nuevo correo de acceso")
+    .fill("nuevo.vecino@example.com");
+  await accessDialog.getByRole("button", { name: "Cambiar correo" }).click();
+  await expect(renamedHousehold).toContainText("nuevo.vecino@example.com");
+  expect(
+    state.requests.find(
+      (row) =>
+        row.path === "/admin/communities/1/households/1/access" &&
+        row.method === "PUT",
+    )?.body,
+  ).toEqual({ email: "nuevo.vecino@example.com" });
+  await expect(page.getByText("ADMIN_HOUSEHOLD_ACCESS_UPDATED")).toBeVisible();
+
+  const unclaimedHousehold = householdsRegion.getByRole("article", {
+    name: "Bloque 18 3ºB",
+    exact: true,
+  });
+  await unclaimedHousehold
+    .getByRole("button", { name: "Gestionar acceso de Bloque 18 3ºB" })
+    .click();
+  const assignDialog = page.getByRole("dialog", {
+    name: "Gestionar acceso de Bloque 18 3ºB",
+  });
+  await expect(assignDialog).toContainText("Sin cuenta vinculada");
+  await assignDialog.getByLabel("Correo de acceso").fill("nuevo@example.com");
+  await assignDialog.getByRole("button", { name: "Asignar acceso" }).click();
+  await expect(unclaimedHousehold).toContainText("nuevo@example.com");
+  await expect(page.getByText("ADMIN_HOUSEHOLD_ACCESS_ASSIGNED")).toBeVisible();
+
   await page.getByRole("button", { name: "Nueva instalación" }).click();
   const createDialog = page.getByRole("dialog", { name: "Nueva instalación" });
   await createDialog.getByLabel("Nombre visible").fill("Piscina");

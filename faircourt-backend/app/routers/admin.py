@@ -25,6 +25,7 @@ from app.schemas import (
     AdminFacilityOut,
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
+    AdminHouseholdAccessUpdateIn,
     AdminHouseholdOut,
     AdminHouseholdUpdateIn,
     AdminMeOut,
@@ -389,6 +390,89 @@ def update_admin_household(
         )
         db.commit()
         db.refresh(household)
+    return _household_summary(household)
+
+
+@router.put(
+    "/communities/{community_id}/households/{household_id}/access",
+    response_model=AdminHouseholdOut,
+)
+def update_admin_household_access(
+    community_id: int,
+    household_id: int,
+    payload: AdminHouseholdAccessUpdateIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    household = _household_or_404(db, community_id, household_id)
+    email = str(payload.email).strip().lower()
+    resident = household.user
+
+    if resident and resident.email.lower() == email:
+        raise HTTPException(
+            status_code=409,
+            detail="Ese correo ya está vinculado a la vivienda.",
+        )
+    duplicate = db.query(User).filter(User.email == email)
+    if resident:
+        duplicate = duplicate.filter(User.id != resident.id)
+    if duplicate.first():
+        raise HTTPException(
+            status_code=409,
+            detail="El correo ya está asociado a otra cuenta.",
+        )
+
+    previous_email = resident.email if resident else None
+    if resident:
+        resident.email = email
+        resident.is_active = True
+        event = "ADMIN_HOUSEHOLD_ACCESS_UPDATED"
+    else:
+        resident = User(
+            email=email,
+            role=UserRole.RESIDENT.value,
+            is_active=True,
+            community_id=community_id,
+            household_id=household.id,
+        )
+        db.add(resident)
+        event = "ADMIN_HOUSEHOLD_ACCESS_ASSIGNED"
+
+    pending_emails = {email}
+    if previous_email:
+        pending_emails.add(previous_email.lower())
+    now = utcnow()
+    (
+        db.query(AuthOTP)
+        .filter(AuthOTP.community_id == community_id)
+        .filter(AuthOTP.purpose == "RESIDENT")
+        .filter(AuthOTP.email.in_(pending_emails))
+        .filter(AuthOTP.used_at.is_(None))
+        .update({AuthOTP.used_at: now}, synchronize_session=False)
+    )
+    try:
+        db.flush()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="No se pudo asignar ese correo a la vivienda.",
+        ) from error
+    log_admin_event(
+        db,
+        event=event,
+        admin_user_id=admin.id,
+        community_id=community_id,
+        metadata={
+            "household_id": household.id,
+            "resident_user_id": resident.id,
+            "previous_access_replaced": previous_email is not None,
+        },
+    )
+    db.commit()
+    db.refresh(household)
+    db.expire(household, ["user"])
     return _household_summary(household)
 
 

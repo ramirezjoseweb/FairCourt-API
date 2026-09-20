@@ -13,6 +13,7 @@ import {
   updateAdminBasicPolicy,
   updateAdminFacility,
   updateAdminHousehold,
+  updateAdminHouseholdAccess,
   verifyAdminOtp,
 } from "../api/admin";
 import type {
@@ -20,6 +21,7 @@ import type {
   AdminFacility,
   AdminFacilityInput,
   AdminHousehold,
+  AdminHouseholdAccessInput,
   AdminHouseholdUpdateInput,
   BasicPolicyInput,
   CommunityPolicy,
@@ -355,6 +357,9 @@ function CommunityWorkspace({
   const [householdForm, setHouseholdForm] = useState<
     AdminHousehold | "new" | null
   >(null);
+  const [accessHousehold, setAccessHousehold] = useState<AdminHousehold | null>(
+    null,
+  );
   const [auditItems, setAuditItems] = useState(audit);
   const [policyValue, setPolicyValue] = useState(policy);
   const [policyFormOpen, setPolicyFormOpen] = useState(false);
@@ -407,6 +412,22 @@ function CommunityWorkspace({
       editing ? "La vivienda se ha actualizado." : "La vivienda se ha creado.",
     );
     if (success) setHouseholdForm(null);
+  }
+
+  async function saveHouseholdAccess(payload: AdminHouseholdAccessInput) {
+    if (!accessHousehold) return;
+    const success = await action.run(async () => {
+      const saved = await updateAdminHouseholdAccess(
+        community.id,
+        accessHousehold.id,
+        payload,
+      );
+      setHouseholds((current) =>
+        current.map((item) => (item.id === saved.id ? saved : item)),
+      );
+      setAuditItems(await getAdminCommunityAudit(community.id));
+    }, "El acceso de la vivienda se ha actualizado.");
+    if (success) setAccessHousehold(null);
   }
 
   async function saveFacility(payload: AdminFacilityInput) {
@@ -520,6 +541,14 @@ function CommunityWorkspace({
                           onClick={() => setHouseholdForm(household)}
                         >
                           Editar
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          disabled={action.busy}
+                          aria-label={`Gestionar acceso de ${household.code}`}
+                          onClick={() => setAccessHousehold(household)}
+                        >
+                          Gestionar acceso
                         </Button>
                       </div>
                     </article>
@@ -670,6 +699,15 @@ function CommunityWorkspace({
           onSave={saveHousehold}
         />
       )}
+      {accessHousehold && (
+        <HouseholdAccessDialog
+          household={accessHousehold}
+          busy={action.busy}
+          error={action.error}
+          onClose={() => setAccessHousehold(null)}
+          onSave={saveHouseholdAccess}
+        />
+      )}
       {policyFormOpen && policyValue && (
         <BasicPolicyFormDialog
           policy={policyValue}
@@ -680,6 +718,88 @@ function CommunityWorkspace({
         />
       )}
     </section>
+  );
+}
+
+function HouseholdAccessDialog({
+  household,
+  busy,
+  error,
+  onClose,
+  onSave,
+}: {
+  household: AdminHousehold;
+  busy: boolean;
+  error?: string;
+  onClose: () => void;
+  onSave: (payload: AdminHouseholdAccessInput) => Promise<void>;
+}) {
+  const [email, setEmail] = useState("");
+  const normalizedEmail = email.trim().toLocaleLowerCase("es");
+  const currentEmail = household.resident_email?.toLocaleLowerCase("es") ?? "";
+  const unchanged = Boolean(currentEmail) && normalizedEmail === currentEmail;
+
+  return (
+    <Dialog title={`Gestionar acceso de ${household.code}`} onClose={onClose}>
+      <form
+        className="admin-household-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!unchanged) void onSave({ email: normalizedEmail });
+        }}
+      >
+        <div className="admin-access-current">
+          <span>Correo vinculado actualmente</span>
+          <strong>{household.resident_email ?? "Sin cuenta vinculada"}</strong>
+        </div>
+        <label className="admin-form-field">
+          <span>
+            {household.resident_email
+              ? "Nuevo correo de acceso"
+              : "Correo de acceso"}
+          </span>
+          <input
+            type="email"
+            value={email}
+            maxLength={254}
+            required
+            autoFocus
+            autoComplete="off"
+            placeholder="residente@correo.es"
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          {unchanged && (
+            <small className="field-hint">
+              Introduce un correo diferente al actual.
+            </small>
+          )}
+        </label>
+        {!household.is_active && (
+          <Notice kind="info">
+            La vivienda seguirá sin poder entrar hasta que también la actives.
+          </Notice>
+        )}
+        <Notice kind="info">
+          El acceso anterior y sus OTP pendientes dejarán de funcionar. Las reservas, strikes e historial seguirán perteneciendo a la vivienda.
+        </Notice>
+        <Feedback error={error} />
+        <div className="dialog-actions">
+          <Button variant="secondary" disabled={busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={busy || !normalizedEmail || unchanged}
+          >
+            {busy
+              ? "Guardando…"
+              : household.resident_email
+                ? "Cambiar correo"
+                : "Asignar acceso"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

@@ -41,6 +41,10 @@ export type AdminHouseholdUpdateInput = AdminHouseholdInput & {
   is_active: boolean;
 };
 
+export type AdminHouseholdAccessInput = {
+  email: string;
+};
+
 export type CommunityPolicy = {
   community_id: number;
   booking_window_days: number;
@@ -151,6 +155,17 @@ export function updateAdminHousehold(
   return adminApiRequest<AdminHousehold>(
     `/admin/communities/${communityId}/households/${householdId}`,
     { method: "PUT", body: JSON.stringify(household) },
+  );
+}
+
+export function updateAdminHouseholdAccess(
+  communityId: number,
+  householdId: number,
+  access: AdminHouseholdAccessInput,
+) {
+  return adminApiRequest<AdminHousehold>(
+    `/admin/communities/${communityId}/households/${householdId}/access`,
+    { method: "PUT", body: JSON.stringify(access) },
   );
 }
 

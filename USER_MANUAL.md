@@ -58,6 +58,13 @@ se conservan para que la operación sea reversible; únicamente se bloquean el
 acceso y las nuevas acciones. El residente recibe un mensaje genérico de
 vivienda inactiva, sin información sobre el motivo administrativo.
 
+La acción **Gestionar acceso** permite asignar el primer correo a una vivienda
+o sustituir el correo vinculado. Al cambiarlo se invalida cualquier OTP
+pendiente del acceso anterior y sus sesiones dejan de ser válidas, mientras se
+conservan la vivienda, reservas, strikes e historial. Por seguridad, no se deja
+una cuenta abierta para que pueda reclamarla cualquiera que conozca el código;
+el administrador debe indicar expresamente el nuevo correo.
+
 En **Instalaciones**, el administrador puede dar de alta un espacio y modificar
 su nombre, código interno, categoría, descripción, prioridad, horario general y
 duración de las reservas. También puede indicar si está activo y si admite

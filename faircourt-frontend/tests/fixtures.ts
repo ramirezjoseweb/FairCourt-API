@@ -476,6 +476,32 @@ export async function setup(
         data = created;
       } else data = rows;
     }
+    else if (path.match(/^\/admin\/communities\/\d+\/households\/\d+\/access$/)) {
+      const [, , , communityIdText, , householdIdText] = path.split("/");
+      const communityId = Number(communityIdText);
+      const householdId = Number(householdIdText);
+      const rows = state.adminHouseholds.get(communityId) ?? [];
+      const index = rows.findIndex((household) => household.id === householdId);
+      const previous = rows[index];
+      const body = request.postDataJSON() as { email: string };
+      const updated: AdminHousehold = {
+        ...previous,
+        resident_email: body.email.trim().toLowerCase(),
+      };
+      rows[index] = updated;
+      state.adminAudit.get(communityId)?.unshift({
+        id: previous.resident_email ? 48 : 47,
+        event: previous.resident_email
+          ? "ADMIN_HOUSEHOLD_ACCESS_UPDATED"
+          : "ADMIN_HOUSEHOLD_ACCESS_ASSIGNED",
+        user_id: 90,
+        household_id: null,
+        reservation_id: null,
+        metadata_json: JSON.stringify({ household_id: updated.id }),
+        created_at: stamp(11),
+      });
+      data = updated;
+    }
     else if (path.match(/^\/admin\/communities\/\d+\/households\/\d+$/)) {
       const [, , , communityIdText, , householdIdText] = path.split("/");
       const communityId = Number(communityIdText);

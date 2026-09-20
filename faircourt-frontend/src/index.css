@@ -2447,6 +2447,22 @@ details {
   display: grid;
   gap: 16px;
 }
+.admin-access-current {
+  display: grid;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8faf5;
+}
+.admin-access-current span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.admin-access-current strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
 .admin-facility-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2678,6 +2694,10 @@ details {
 :root[data-theme="dark"] .admin-household-icon {
   background: #18342b;
   color: #c4db91;
+}
+:root[data-theme="dark"] .admin-access-current {
+  background: #102721;
+  border-color: #29443b;
 }
 .otp-input {
   letter-spacing: 3px;
