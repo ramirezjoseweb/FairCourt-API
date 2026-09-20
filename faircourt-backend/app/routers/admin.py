@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
 from app.db import get_db
@@ -17,11 +18,14 @@ from app.models import (
     Household,
     User,
     UserRole,
+    normalize_household_code,
 )
 from app.schemas import (
     AdminBasicPolicyUpdateIn,
     AdminFacilityOut,
     AdminFacilityWriteIn,
+    AdminHouseholdCreateIn,
+    AdminHouseholdOut,
     AdminMeOut,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
@@ -87,6 +91,19 @@ def _facility_or_404(
     if not facility:
         raise HTTPException(status_code=404, detail="Instalación no encontrada.")
     return facility
+
+
+def _household_summary(household: Household) -> dict:
+    return {
+        "id": household.id,
+        "community_id": household.community_id,
+        "code": household.code,
+        "is_active": household.is_active,
+        "strikes": household.strikes,
+        "suspended_until": household.suspended_until,
+        "resident_email": household.user.email if household.user else None,
+        "created_at": household.created_at,
+    }
 
 
 @router.post("/auth/request-otp", response_model=MessageOut)
@@ -216,6 +233,76 @@ def select_admin_community(
     )
     db.commit()
     return _community_summary(db, community)
+
+
+@router.get(
+    "/communities/{community_id}/households",
+    response_model=list[AdminHouseholdOut],
+)
+def list_admin_households(
+    community_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    households = (
+        db.query(Household)
+        .options(joinedload(Household.user))
+        .filter(Household.community_id == community_id)
+        .order_by(Household.code_normalized.asc())
+        .all()
+    )
+    return [_household_summary(household) for household in households]
+
+
+@router.post(
+    "/communities/{community_id}/households",
+    response_model=AdminHouseholdOut,
+    status_code=201,
+)
+def create_admin_household(
+    community_id: int,
+    payload: AdminHouseholdCreateIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    normalized_code = normalize_household_code(payload.code)
+    duplicate = (
+        db.query(Household)
+        .filter(Household.community_id == community_id)
+        .filter(Household.code_normalized == normalized_code)
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una vivienda con ese código en la comunidad.",
+        )
+
+    household = Household(community_id=community_id, code=payload.code)
+    db.add(household)
+    try:
+        db.flush()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una vivienda con ese código en la comunidad.",
+        ) from error
+    log_admin_event(
+        db,
+        event="ADMIN_HOUSEHOLD_CREATED",
+        admin_user_id=admin.id,
+        community_id=community_id,
+        metadata={
+            "household_id": household.id,
+            "household_code": household.code,
+        },
+    )
+    db.commit()
+    db.refresh(household)
+    return _household_summary(household)
 
 
 @router.get(
@@ -395,6 +482,6 @@ def read_private_admin_audit(
         db.query(AuditLog)
         .filter(AuditLog.community_id == community_id)
         .filter(AuditLog.visibility == AuditVisibility.ADMIN.value)
-        .order_by(AuditLog.created_at.desc())
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
         .all()
     )

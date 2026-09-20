@@ -24,7 +24,9 @@ from app.models import (
     UserRole,
 )
 from app.routers.admin import (
+    create_admin_household,
     create_admin_facility,
+    list_admin_households,
     list_admin_communities,
     list_admin_facilities,
     read_admin_community_policy,
@@ -39,6 +41,7 @@ from app.routers.audit import get_my_audit_logs
 from app.schemas import (
     AdminBasicPolicyUpdateIn,
     AdminFacilityWriteIn,
+    AdminHouseholdCreateIn,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
 )
@@ -281,6 +284,51 @@ class AdminAccessTests(unittest.TestCase):
         self.assertEqual(
             events,
             ["ADMIN_FACILITY_UPDATED", "ADMIN_FACILITY_CREATED"],
+        )
+        self.assertEqual(get_my_audit_logs(db=self.db, current_user=self.resident), [])
+
+    def test_admin_creates_and_lists_households_only_in_target_community(self) -> None:
+        created = create_admin_household(
+            community_id=self.community_b.id,
+            payload=AdminHouseholdCreateIn(code="  GRP0001  "),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(created["community_id"], self.community_b.id)
+        self.assertEqual(created["code"], "GRP0001")
+        self.assertIsNone(created["resident_email"])
+
+        households_a = list_admin_households(
+            community_id=self.community_a.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        households_b = list_admin_households(
+            community_id=self.community_b.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual([row["code"] for row in households_a], ["GRP0001"])
+        self.assertEqual([row["code"] for row in households_b], ["GRP0001"])
+        self.assertEqual(households_a[0]["resident_email"], self.resident.email)
+
+        with self.assertRaises(HTTPException) as duplicate:
+            create_admin_household(
+                community_id=self.community_b.id,
+                payload=AdminHouseholdCreateIn(code="grp0001"),
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(duplicate.exception.status_code, 409)
+
+        private_entries = read_private_admin_audit(
+            community_id=self.community_b.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(
+            [entry.event for entry in private_entries],
+            ["ADMIN_HOUSEHOLD_CREATED"],
         )
         self.assertEqual(get_my_audit_logs(db=self.db, current_user=self.resident), [])
 

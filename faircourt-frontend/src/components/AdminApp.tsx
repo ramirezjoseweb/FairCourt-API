@@ -1,10 +1,12 @@
 import { useState } from "react";
 import {
+  createAdminHousehold,
   createAdminFacility,
   getAdminCommunities,
   getAdminCommunityAudit,
   getAdminCommunityPolicy,
   getAdminFacilities,
+  getAdminHouseholds,
   getAdminMe,
   requestAdminOtp,
   selectAdminCommunity,
@@ -16,6 +18,8 @@ import type {
   AdminAuditEntry,
   AdminFacility,
   AdminFacilityInput,
+  AdminHousehold,
+  AdminHouseholdInput,
   BasicPolicyInput,
   CommunityPolicy,
   CommunitySummary,
@@ -223,19 +227,23 @@ function AdminDashboard({
   const [policy, setPolicy] = useState<CommunityPolicy>();
   const [audit, setAudit] = useState<AdminAuditEntry[]>([]);
   const [facilities, setFacilities] = useState<AdminFacility[]>([]);
+  const [households, setHouseholds] = useState<AdminHousehold[]>([]);
 
   async function choose(community: CommunitySummary) {
     await action.run(async () => {
       const selectedCommunity = await selectAdminCommunity(community.id);
-      const [communityPolicy, privateAudit, communityFacilities] = await Promise.all([
-        getAdminCommunityPolicy(community.id),
-        getAdminCommunityAudit(community.id),
-        getAdminFacilities(community.id),
-      ]);
+      const [communityPolicy, privateAudit, communityFacilities, communityHouseholds] =
+        await Promise.all([
+          getAdminCommunityPolicy(community.id),
+          getAdminCommunityAudit(community.id),
+          getAdminFacilities(community.id),
+          getAdminHouseholds(community.id),
+        ]);
       setSelected(selectedCommunity);
       setPolicy(communityPolicy);
       setAudit(privateAudit);
       setFacilities(communityFacilities);
+      setHouseholds(communityHouseholds);
       window.scrollTo({ top: 0 });
     });
   }
@@ -307,11 +315,13 @@ function AdminDashboard({
             policy={policy}
             audit={audit}
             facilities={facilities}
+            households={households}
             onBack={() => {
               setSelected(undefined);
               setPolicy(undefined);
               setAudit([]);
               setFacilities([]);
+              setHouseholds([]);
               communities.reload();
             }}
           />
@@ -326,16 +336,22 @@ function CommunityWorkspace({
   policy,
   audit,
   facilities: initialFacilities,
+  households: initialHouseholds,
   onBack,
 }: {
   community: CommunitySummary;
   policy?: CommunityPolicy;
   audit: AdminAuditEntry[];
   facilities: AdminFacility[];
+  households: AdminHousehold[];
   onBack: () => void;
 }) {
   const action = useAction();
   const [facilities, setFacilities] = useState(initialFacilities);
+  const [households, setHouseholds] = useState(initialHouseholds);
+  const [householdCount, setHouseholdCount] = useState(community.household_count);
+  const [householdSearch, setHouseholdSearch] = useState("");
+  const [householdFormOpen, setHouseholdFormOpen] = useState(false);
   const [auditItems, setAuditItems] = useState(audit);
   const [policyValue, setPolicyValue] = useState(policy);
   const [policyFormOpen, setPolicyFormOpen] = useState(false);
@@ -357,6 +373,27 @@ function CommunityWorkspace({
         ["Votaciones", policyValue.unlock_voting_enabled ? "Activadas" : "Desactivadas"],
       ]
     : [];
+  const householdQuery = householdSearch.trim().toLocaleLowerCase("es");
+  const filteredHouseholds = households.filter((household) =>
+    [household.code, household.resident_email ?? ""].some((value) =>
+      value.toLocaleLowerCase("es").includes(householdQuery),
+    ),
+  );
+  const visibleHouseholds = filteredHouseholds.slice(0, 50);
+
+  async function saveHousehold(payload: AdminHouseholdInput) {
+    const success = await action.run(async () => {
+      const created = await createAdminHousehold(community.id, payload);
+      setHouseholds((current) =>
+        [...current, created].sort((left, right) =>
+          left.code.localeCompare(right.code, "es", { numeric: true }),
+        ),
+      );
+      setHouseholdCount((current) => current + 1);
+      setAuditItems(await getAdminCommunityAudit(community.id));
+    }, "La vivienda se ha creado.");
+    if (success) setHouseholdFormOpen(false);
+  }
 
   async function saveFacility(payload: AdminFacilityInput) {
     const editing = facilityForm !== "new" ? facilityForm : undefined;
@@ -397,7 +434,7 @@ function CommunityWorkspace({
           <p className="eyebrow">CONTEXTO ADMINISTRATIVO ACTIVO</p>
           <h1>{community.name}</h1>
           <p className="muted">
-            {community.household_count} viviendas · {facilities.length} instalaciones · {community.timezone}
+            {householdCount} viviendas · {facilities.length} instalaciones · {community.timezone}
           </p>
         </div>
         <Button variant="secondary" onClick={onBack}>
@@ -408,6 +445,79 @@ function CommunityWorkspace({
         Todas las operaciones de esta pantalla pertenecen exclusivamente a <strong>{community.name}</strong>.
       </Notice>
       <Feedback error={action.error} message={action.message} />
+      <section className="panel admin-households-panel" aria-labelledby="admin-households-title">
+        <div className="section-heading admin-section-heading">
+          <div>
+            <p className="eyebrow">RESIDENTES Y ACCESO</p>
+            <h2 id="admin-households-title">Viviendas</h2>
+          </div>
+          <Button disabled={action.busy} onClick={() => setHouseholdFormOpen(true)}>
+            <Icon name="plus" /> Nueva vivienda
+          </Button>
+        </div>
+        <p className="muted small admin-household-explanation">
+          Cada código pertenece solo a esta comunidad. El residente vinculará su correo en el primer acceso.
+        </p>
+        {households.length ? (
+          <>
+            <label className="admin-household-search">
+              <span>Buscar vivienda o correo vinculado</span>
+              <input
+                type="search"
+                value={householdSearch}
+                placeholder="Ej. GRP001 o vecino@correo.es"
+                onChange={(event) => setHouseholdSearch(event.target.value)}
+              />
+            </label>
+            <div className="admin-household-results" aria-live="polite">
+              <span>
+                {filteredHouseholds.length} de {households.length} viviendas
+              </span>
+              {filteredHouseholds.length > visibleHouseholds.length && (
+                <span>Mostrando las primeras {visibleHouseholds.length}</span>
+              )}
+            </div>
+            {visibleHouseholds.length ? (
+              <div className="admin-household-list">
+                {visibleHouseholds.map((household) => {
+                  const titleId = `admin-household-${household.id}`;
+                  return (
+                    <article key={household.id} aria-labelledby={titleId}>
+                      <span className="admin-household-icon">
+                        <Icon name="home" />
+                      </span>
+                      <div className="admin-household-main">
+                        <strong id={titleId}>{household.code}</strong>
+                        <span className="muted small">
+                          {household.resident_email ?? "Sin cuenta vinculada"}
+                        </span>
+                      </div>
+                      <div className="admin-household-status">
+                        <Badge tone={household.is_active ? "green" : "red"}>
+                          {household.is_active ? "Activa" : "Inactiva"}
+                        </Badge>
+                        <span className="muted small">
+                          {household.resident_email ? "Cuenta vinculada" : "Pendiente de acceso"}
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="muted admin-household-no-results">
+                No hay viviendas que coincidan con la búsqueda.
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="admin-empty-state">
+            <Icon name="home" />
+            <h3>Todavía no hay viviendas.</h3>
+            <p className="muted">Crea la primera para habilitar el acceso de sus residentes.</p>
+          </div>
+        )}
+      </section>
       <section className="panel admin-facilities-panel">
         <div className="section-heading admin-section-heading">
           <div>
@@ -529,6 +639,14 @@ function CommunityWorkspace({
           onSave={saveFacility}
         />
       )}
+      {householdFormOpen && (
+        <HouseholdFormDialog
+          busy={action.busy}
+          error={action.error}
+          onClose={() => setHouseholdFormOpen(false)}
+          onSave={saveHousehold}
+        />
+      )}
       {policyFormOpen && policyValue && (
         <BasicPolicyFormDialog
           policy={policyValue}
@@ -539,6 +657,60 @@ function CommunityWorkspace({
         />
       )}
     </section>
+  );
+}
+
+function HouseholdFormDialog({
+  busy,
+  error,
+  onClose,
+  onSave,
+}: {
+  busy: boolean;
+  error?: string;
+  onClose: () => void;
+  onSave: (payload: AdminHouseholdInput) => Promise<void>;
+}) {
+  const [code, setCode] = useState("");
+
+  return (
+    <Dialog title="Nueva vivienda" onClose={onClose}>
+      <form
+        className="admin-household-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSave({ code: code.trim() });
+        }}
+      >
+        <label className="admin-form-field">
+          <span>Código de vivienda</span>
+          <input
+            value={code}
+            maxLength={50}
+            required
+            autoFocus
+            placeholder="Ej. GRP001 o Bloque 18 3ºB"
+            aria-describedby="household-code-help"
+            onChange={(event) => setCode(event.target.value)}
+          />
+          <small id="household-code-help" className="field-hint">
+            Debe ser único dentro de {"esta comunidad"}. Puede repetirse en otra comunidad.
+          </small>
+        </label>
+        <Notice kind="info">
+          No necesitas indicar un correo. La cuenta quedará vinculada cuando el residente solicite su primer OTP.
+        </Notice>
+        <Feedback error={error} />
+        <div className="dialog-actions">
+          <Button variant="secondary" disabled={busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={busy || !code.trim()}>
+            {busy ? "Creando…" : "Crear vivienda"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

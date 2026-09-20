@@ -7,6 +7,7 @@ import type { UnlockProposal } from "../src/api/unlock";
 import type {
   AdminAuditEntry,
   AdminFacility,
+  AdminHousehold,
   CommunityPolicy,
 } from "../src/api/admin";
 
@@ -283,6 +284,48 @@ export async function setup(
         ],
       ],
     ]),
+    adminHouseholds: new Map<number, AdminHousehold[]>([
+      [
+        1,
+        [
+          {
+            id: 1,
+            community_id: 1,
+            code: "GRP0001",
+            is_active: true,
+            strikes: 0,
+            suspended_until: null,
+            resident_email: "vecino@faircourt.es",
+            created_at: stamp(8, "2026-08-01"),
+          },
+          {
+            id: 2,
+            community_id: 1,
+            code: "Bloque 18 3ºB",
+            is_active: true,
+            strikes: 0,
+            suspended_until: null,
+            resident_email: null,
+            created_at: stamp(8, "2026-08-02"),
+          },
+        ],
+      ],
+      [
+        2,
+        [
+          {
+            id: 20,
+            community_id: 2,
+            code: "BTEST001",
+            is_active: true,
+            strikes: 0,
+            suspended_until: null,
+            resident_email: "resident-b@example.com",
+            created_at: stamp(8, "2026-08-03"),
+          },
+        ],
+      ],
+    ]),
     adminAudit: new Map<number, AdminAuditEntry[]>([
       [
         1,
@@ -402,6 +445,37 @@ export async function setup(
       data = state.adminCommunities.find(
         (community) => community.id === Number(path.split("/")[3]),
       );
+    else if (path.match(/^\/admin\/communities\/\d+\/households$/)) {
+      const communityId = Number(path.split("/")[3]);
+      const rows = state.adminHouseholds.get(communityId) ?? [];
+      if (request.method() === "POST") {
+        const body = request.postDataJSON() as { code: string };
+        const created: AdminHousehold = {
+          id: Math.max(0, ...rows.map((household) => household.id)) + 1,
+          community_id: communityId,
+          code: body.code.trim(),
+          is_active: true,
+          strikes: 0,
+          suspended_until: null,
+          resident_email: null,
+          created_at: stamp(9),
+        };
+        rows.push(created);
+        state.adminCommunities.find(
+          (community) => community.id === communityId,
+        )!.household_count++;
+        state.adminAudit.get(communityId)?.unshift({
+          id: 44,
+          event: "ADMIN_HOUSEHOLD_CREATED",
+          user_id: 90,
+          household_id: null,
+          reservation_id: null,
+          metadata_json: JSON.stringify({ household_id: created.id }),
+          created_at: stamp(9),
+        });
+        data = created;
+      } else data = rows;
+    }
     else if (path.match(/^\/admin\/communities\/\d+\/facilities$/)) {
       const communityId = Number(path.split("/")[3]);
       const rows = state.adminFacilities.get(communityId) ?? [];

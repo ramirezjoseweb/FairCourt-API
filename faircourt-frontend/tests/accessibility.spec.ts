@@ -134,6 +134,12 @@ for (const theme of ["light", "dark"] as const) {
         .getByRole("button", { name: "Administrar comunidad" })
         .click();
       await check("Contexto administrativo");
+      await page.getByRole("button", { name: "Nueva vivienda" }).click();
+      await expect(
+        page.getByRole("dialog", { name: "Nueva vivienda" }),
+      ).toBeVisible();
+      await check("Formulario administrativo de viviendas");
+      await page.keyboard.press("Escape");
       await page.getByRole("button", { name: "Nueva instalación" }).click();
       await expect(
         page.getByRole("dialog", { name: "Nueva instalación" }),

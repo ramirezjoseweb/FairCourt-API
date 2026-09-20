@@ -132,6 +132,32 @@ test("admin: separate OTP, community selector and private context", async ({
     page.getByRole("heading", { name: "Instalaciones", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".admin-facility-card")).toHaveCount(3);
+  const householdsRegion = page.getByRole("region", { name: "Viviendas" });
+  await expect(householdsRegion).toBeVisible();
+  await expect(householdsRegion.getByRole("article")).toHaveCount(2);
+  await householdsRegion
+    .getByLabel("Buscar vivienda o correo vinculado")
+    .fill("Bloque 18");
+  await expect(householdsRegion.getByRole("article")).toHaveCount(1);
+  await expect(householdsRegion.getByText("Sin cuenta vinculada")).toBeVisible();
+  await householdsRegion
+    .getByLabel("Buscar vivienda o correo vinculado")
+    .fill("");
+
+  await householdsRegion.getByRole("button", { name: "Nueva vivienda" }).click();
+  const householdDialog = page.getByRole("dialog", { name: "Nueva vivienda" });
+  await householdDialog.getByLabel("Código de vivienda").fill("GRP0501");
+  await householdDialog.getByRole("button", { name: "Crear vivienda" }).click();
+  await expect(householdsRegion.getByText("GRP0501", { exact: true })).toBeVisible();
+  await expect(householdsRegion.getByRole("article")).toHaveCount(3);
+  expect(
+    state.requests.find(
+      (row) =>
+        row.path === "/admin/communities/1/households" &&
+        row.method === "POST",
+    )?.body,
+  ).toEqual({ code: "GRP0501" });
+  await expect(page.getByText("ADMIN_HOUSEHOLD_CREATED")).toBeVisible();
 
   await page.getByRole("button", { name: "Nueva instalación" }).click();
   const createDialog = page.getByRole("dialog", { name: "Nueva instalación" });

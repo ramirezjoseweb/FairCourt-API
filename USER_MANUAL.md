@@ -43,6 +43,14 @@ Las acciones administrativas se registran en una auditoría privada. Los
 residentes solo pueden consultar el historial de su propia vivienda y nunca
 ven correos administrativos, notas internas ni motivos sensibles.
 
+En **Viviendas**, el administrador puede consultar y buscar los códigos de la
+comunidad seleccionada y dar de alta una vivienda individual. El código debe
+ser único dentro de esa comunidad, pero puede repetirse en otra distinta. No es
+necesario asignar un correo durante el alta: la primera persona que acceda con
+el código vinculará la cuenta mediante el flujo OTP habitual. El panel muestra
+si la vivienda tiene ya una cuenta vinculada, y el alta queda registrada en la
+auditoría administrativa privada.
+
 En **Instalaciones**, el administrador puede dar de alta un espacio y modificar
 su nombre, código interno, categoría, descripción, prioridad, horario general y
 duración de las reservas. También puede indicar si está activo y si admite

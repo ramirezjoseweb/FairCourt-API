@@ -22,6 +22,21 @@ export type CommunitySummary = {
   facility_count: number;
 };
 
+export type AdminHousehold = {
+  id: number;
+  community_id: number;
+  code: string;
+  is_active: boolean;
+  strikes: number;
+  suspended_until: string | null;
+  resident_email: string | null;
+  created_at: string;
+};
+
+export type AdminHouseholdInput = {
+  code: string;
+};
+
 export type CommunityPolicy = {
   community_id: number;
   booking_window_days: number;
@@ -105,6 +120,22 @@ export function selectAdminCommunity(communityId: number) {
   return adminApiRequest<CommunitySummary>(
     `/admin/communities/${communityId}/select`,
     { method: "POST" },
+  );
+}
+
+export function getAdminHouseholds(communityId: number) {
+  return adminApiRequest<AdminHousehold[]>(
+    `/admin/communities/${communityId}/households`,
+  );
+}
+
+export function createAdminHousehold(
+  communityId: number,
+  household: AdminHouseholdInput,
+) {
+  return adminApiRequest<AdminHousehold>(
+    `/admin/communities/${communityId}/households`,
+    { method: "POST", body: JSON.stringify(household) },
   );
 }
 

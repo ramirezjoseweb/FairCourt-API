@@ -54,6 +54,29 @@ class CommunitySummaryOut(BaseModel):
     facility_count: int
 
 
+class AdminHouseholdCreateIn(BaseModel):
+    code: str = Field(min_length=1, max_length=50)
+
+    @field_validator("code")
+    @classmethod
+    def normalize_code_spacing(cls, value: str) -> str:
+        normalized = " ".join(value.strip().split())
+        if not normalized:
+            raise ValueError("El código de vivienda no puede estar vacío.")
+        return normalized
+
+
+class AdminHouseholdOut(BaseModel):
+    id: int
+    community_id: int
+    code: str
+    is_active: bool
+    strikes: int
+    suspended_until: datetime | None = None
+    resident_email: str | None = None
+    created_at: datetime
+
+
 class FacilityOut(BaseModel):
     id: int
     slug: str
