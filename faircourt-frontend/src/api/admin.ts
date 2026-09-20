@@ -45,6 +45,34 @@ export type AdminHouseholdAccessInput = {
   email: string;
 };
 
+export type AdminHouseholdCsvInput = {
+  file_name: string;
+  csv_text: string;
+};
+
+export type AdminHouseholdCsvRow = {
+  line: number;
+  code: string;
+  email: string | null;
+  is_active: boolean;
+  status: "new" | "existing" | "error";
+  message: string | null;
+};
+
+export type AdminHouseholdCsvPreview = {
+  rows: AdminHouseholdCsvRow[];
+  total_rows: number;
+  new_count: number;
+  existing_count: number;
+  error_count: number;
+  can_import: boolean;
+};
+
+export type AdminHouseholdCsvImport = {
+  created_count: number;
+  households: AdminHousehold[];
+};
+
 export type CommunityPolicy = {
   community_id: number;
   booking_window_days: number;
@@ -166,6 +194,26 @@ export function updateAdminHouseholdAccess(
   return adminApiRequest<AdminHousehold>(
     `/admin/communities/${communityId}/households/${householdId}/access`,
     { method: "PUT", body: JSON.stringify(access) },
+  );
+}
+
+export function previewAdminHouseholdCsv(
+  communityId: number,
+  input: AdminHouseholdCsvInput,
+) {
+  return adminApiRequest<AdminHouseholdCsvPreview>(
+    `/admin/communities/${communityId}/household-import/preview`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function importAdminHouseholdCsv(
+  communityId: number,
+  input: AdminHouseholdCsvInput,
+) {
+  return adminApiRequest<AdminHouseholdCsvImport>(
+    `/admin/communities/${communityId}/household-import/confirm`,
+    { method: "POST", body: JSON.stringify(input) },
   );
 }
 

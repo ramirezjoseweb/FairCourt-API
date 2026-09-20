@@ -26,6 +26,9 @@ from app.schemas import (
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
     AdminHouseholdAccessUpdateIn,
+    AdminHouseholdCsvImportOut,
+    AdminHouseholdCsvIn,
+    AdminHouseholdCsvPreviewOut,
     AdminHouseholdOut,
     AdminHouseholdUpdateIn,
     AdminMeOut,
@@ -45,6 +48,11 @@ from app.security import (
     verify_secret,
 )
 from app.services.audit import log_admin_event
+from app.services.household_import import (
+    HouseholdCsvError,
+    import_household_csv,
+    preview_household_csv,
+)
 from app.services.policies import get_community_policy
 
 
@@ -322,6 +330,59 @@ def create_admin_household(
     db.commit()
     db.refresh(household)
     return _household_summary(household)
+
+
+@router.post(
+    "/communities/{community_id}/household-import/preview",
+    response_model=AdminHouseholdCsvPreviewOut,
+)
+def preview_admin_household_import(
+    community_id: int,
+    payload: AdminHouseholdCsvIn,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    try:
+        return preview_household_csv(db, community_id, payload.csv_text)
+    except HouseholdCsvError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.post(
+    "/communities/{community_id}/household-import/confirm",
+    response_model=AdminHouseholdCsvImportOut,
+    status_code=201,
+)
+def confirm_admin_household_import(
+    community_id: int,
+    payload: AdminHouseholdCsvIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    try:
+        result = import_household_csv(
+            db,
+            community_id,
+            admin.id,
+            payload.file_name,
+            payload.csv_text,
+        )
+    except HouseholdCsvError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Los datos han cambiado. Revisa de nuevo el archivo.",
+        ) from error
+    return {
+        "created_count": result["created_count"],
+        "households": [
+            _household_summary(household) for household in result["households"]
+        ],
+    }
 
 
 @router.put(

@@ -51,6 +51,14 @@ el código vinculará la cuenta mediante el flujo OTP habitual. El panel muestra
 si la vivienda tiene ya una cuenta vinculada, y el alta queda registrada en la
 auditoría administrativa privada.
 
+La acción **Importar CSV** permite descargar una plantilla y preparar altas
+masivas con las columnas `codigo_vivienda`, `correo` y `activa`. El correo y el
+estado son opcionales; si `activa` queda vacío, la vivienda se crea activa. El
+panel muestra una previsualización antes de guardar. Las viviendas que ya
+existen en la comunidad se omiten sin modificarlas y cualquier fila errónea
+bloquea toda la importación, por lo que nunca se guarda un lote parcial. Cada
+importación confirmada queda resumida en la auditoría administrativa privada.
+
 Desde la misma lista se puede editar el código y activar o desactivar una
 vivienda. Una vivienda inactiva no puede solicitar OTP ni continuar utilizando
 una sesión residencial abierta. La cuenta vinculada y las reservas existentes

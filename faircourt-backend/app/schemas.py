@@ -79,6 +79,29 @@ class AdminHouseholdAccessUpdateIn(BaseModel):
         return str(value).strip().lower()
 
 
+class AdminHouseholdCsvIn(BaseModel):
+    file_name: str = Field(default="viviendas.csv", min_length=1, max_length=255)
+    csv_text: str = Field(min_length=1, max_length=1_000_000)
+
+
+class AdminHouseholdCsvRowOut(BaseModel):
+    line: int
+    code: str
+    email: str | None = None
+    is_active: bool
+    status: str
+    message: str | None = None
+
+
+class AdminHouseholdCsvPreviewOut(BaseModel):
+    rows: list[AdminHouseholdCsvRowOut]
+    total_rows: int
+    new_count: int
+    existing_count: int
+    error_count: int
+    can_import: bool
+
+
 class AdminHouseholdOut(BaseModel):
     id: int
     community_id: int
@@ -88,6 +111,11 @@ class AdminHouseholdOut(BaseModel):
     suspended_until: datetime | None = None
     resident_email: str | None = None
     created_at: datetime
+
+
+class AdminHouseholdCsvImportOut(BaseModel):
+    created_count: int
+    households: list[AdminHouseholdOut]
 
 
 class FacilityOut(BaseModel):

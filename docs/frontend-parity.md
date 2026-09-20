@@ -29,7 +29,7 @@ Todas las capacidades inventariadas tienen una ubicación en la nueva interfaz y
 | PWA, recursos locales y apertura sin conexión | Manifiesto, iconos e interfaz de producción | pwa |
 | Navegación de escritorio y móvil con acceso a todas las secciones | Barra lateral y navegación inferior con menú Más | visual; accessibility |
 | Tema claro u oscuro, preferencia inicial del sistema y elección persistente | Selector de apariencia en acceso y barra superior | appearance; accessibility |
-| OTP administrativo separado, selección explícita de comunidad, alta, búsqueda, edición, estado activo y recuperación de acceso de viviendas, catálogo de instalaciones y reglas básicas editables, política efectiva y auditoría privada | `/admin` y espacio de la comunidad seleccionada | admin |
+| OTP administrativo separado, selección explícita de comunidad, alta individual o CSV con previsualización atómica, búsqueda, edición, estado activo y recuperación de acceso de viviendas, catálogo de instalaciones y reglas básicas editables, política efectiva y auditoría privada | `/admin` y espacio de la comunidad seleccionada | admin |
 | Operación por teclado y contenido adaptable | Etiquetas, foco visible, enlace de salto, diálogos y movimiento reducido | accessibility; visual; responsive |
 
 ## Resultado de las comprobaciones

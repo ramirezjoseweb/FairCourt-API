@@ -159,6 +159,43 @@ test("admin: separate OTP, community selector and private context", async ({
   ).toEqual({ code: "GRP0501" });
   await expect(page.getByText("ADMIN_HOUSEHOLD_CREATED")).toBeVisible();
 
+  await householdsRegion.getByRole("button", { name: "Importar CSV" }).click();
+  const csvDialog = page.getByRole("dialog", {
+    name: "Importar viviendas desde CSV",
+  });
+  const downloadPromise = page.waitForEvent("download");
+  await csvDialog.getByRole("button", { name: "Descargar plantilla CSV" }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe(
+    "plantilla-viviendas.csv",
+  );
+  await csvDialog.getByLabel("Archivo CSV").setInputFiles({
+    name: "gran-parque.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "codigo_vivienda;correo;activa\n" +
+        "GRP0501;;si\n" +
+        "GRP0502;csv@example.com;si\n" +
+        "GRP0503;;no\n",
+    ),
+  });
+  await csvDialog.getByRole("button", { name: "Revisar archivo" }).click();
+  await expect(csvDialog.getByText("Nuevas").locator("..")).toContainText("2");
+  await expect(csvDialog.getByText("Ya existen").locator("..")).toContainText("1");
+  await expect(csvDialog.getByText("Con errores").locator("..")).toContainText("0");
+  await expect(csvDialog.getByText("GRP0502", { exact: true })).toBeVisible();
+  await csvDialog.getByRole("button", { name: "Importar 2 viviendas" }).click();
+  await expect(householdsRegion.getByText("GRP0502", { exact: true })).toBeVisible();
+  await expect(householdsRegion.getByText("GRP0503", { exact: true })).toBeVisible();
+  await expect(householdsRegion.getByRole("article")).toHaveCount(5);
+  expect(
+    state.requests.find(
+      (row) =>
+        row.path === "/admin/communities/1/household-import/confirm" &&
+        row.method === "POST",
+    )?.body,
+  ).toMatchObject({ file_name: "gran-parque.csv" });
+  await expect(page.getByText("ADMIN_HOUSEHOLDS_CSV_IMPORTED")).toBeVisible();
+
   const linkedHousehold = householdsRegion.getByRole("article", {
     name: "GRP0001",
     exact: true,

@@ -8,6 +8,8 @@ import {
   getAdminFacilities,
   getAdminHouseholds,
   getAdminMe,
+  importAdminHouseholdCsv,
+  previewAdminHouseholdCsv,
   requestAdminOtp,
   selectAdminCommunity,
   updateAdminBasicPolicy,
@@ -22,6 +24,9 @@ import type {
   AdminFacilityInput,
   AdminHousehold,
   AdminHouseholdAccessInput,
+  AdminHouseholdCsvImport,
+  AdminHouseholdCsvInput,
+  AdminHouseholdCsvPreview,
   AdminHouseholdUpdateInput,
   BasicPolicyInput,
   CommunityPolicy,
@@ -360,6 +365,7 @@ function CommunityWorkspace({
   const [accessHousehold, setAccessHousehold] = useState<AdminHousehold | null>(
     null,
   );
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [auditItems, setAuditItems] = useState(audit);
   const [policyValue, setPolicyValue] = useState(policy);
   const [policyFormOpen, setPolicyFormOpen] = useState(false);
@@ -430,6 +436,17 @@ function CommunityWorkspace({
     if (success) setAccessHousehold(null);
   }
 
+  async function acceptCsvImport(result: AdminHouseholdCsvImport) {
+    setHouseholds((current) =>
+      [...current, ...result.households].sort((left, right) =>
+        left.code.localeCompare(right.code, "es", { numeric: true }),
+      ),
+    );
+    setHouseholdCount((current) => current + result.created_count);
+    setAuditItems(await getAdminCommunityAudit(community.id));
+    setCsvImportOpen(false);
+  }
+
   async function saveFacility(payload: AdminFacilityInput) {
     const editing = facilityForm !== "new" ? facilityForm : undefined;
     const success = await action.run(
@@ -486,9 +503,18 @@ function CommunityWorkspace({
             <p className="eyebrow">RESIDENTES Y ACCESO</p>
             <h2 id="admin-households-title">Viviendas</h2>
           </div>
-          <Button disabled={action.busy} onClick={() => setHouseholdForm("new")}>
-            <Icon name="plus" /> Nueva vivienda
-          </Button>
+          <div className="admin-section-actions">
+            <Button
+              variant="secondary"
+              disabled={action.busy}
+              onClick={() => setCsvImportOpen(true)}
+            >
+              Importar CSV
+            </Button>
+            <Button disabled={action.busy} onClick={() => setHouseholdForm("new")}>
+              <Icon name="plus" /> Nueva vivienda
+            </Button>
+          </div>
         </div>
         <p className="muted small admin-household-explanation">
           Cada código pertenece solo a esta comunidad. El residente vinculará su correo en el primer acceso.
@@ -708,6 +734,13 @@ function CommunityWorkspace({
           onSave={saveHouseholdAccess}
         />
       )}
+      {csvImportOpen && (
+        <HouseholdCsvImportDialog
+          communityId={community.id}
+          onClose={() => setCsvImportOpen(false)}
+          onImported={acceptCsvImport}
+        />
+      )}
       {policyFormOpen && policyValue && (
         <BasicPolicyFormDialog
           policy={policyValue}
@@ -718,6 +751,170 @@ function CommunityWorkspace({
         />
       )}
     </section>
+  );
+}
+
+function downloadHouseholdCsvTemplate() {
+  const content =
+    "\ufeffcodigo_vivienda;correo;activa\r\n" +
+    "VIVIENDA-001;vecino@example.com;si\r\n" +
+    "VIVIENDA-002;;si\r\n";
+  const url = URL.createObjectURL(
+    new Blob([content], { type: "text/csv;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "plantilla-viviendas.csv";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function HouseholdCsvImportDialog({
+  communityId,
+  onClose,
+  onImported,
+}: {
+  communityId: number;
+  onClose: () => void;
+  onImported: (result: AdminHouseholdCsvImport) => Promise<void>;
+}) {
+  const action = useAction();
+  const [file, setFile] = useState<AdminHouseholdCsvInput>();
+  const [fileError, setFileError] = useState("");
+  const [preview, setPreview] = useState<AdminHouseholdCsvPreview>();
+
+  async function selectFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const selected = event.target.files?.[0];
+    setPreview(undefined);
+    setFileError("");
+    if (!selected) {
+      setFile(undefined);
+      return;
+    }
+    if (selected.size > 1_000_000) {
+      setFile(undefined);
+      setFileError("El archivo no puede superar 1 MB.");
+      return;
+    }
+    try {
+      setFile({ file_name: selected.name, csv_text: await selected.text() });
+    } catch {
+      setFile(undefined);
+      setFileError("No se ha podido leer el archivo.");
+    }
+  }
+
+  async function review() {
+    if (!file) return;
+    await action.run(async () => {
+      setPreview(await previewAdminHouseholdCsv(communityId, file));
+    });
+  }
+
+  async function confirm() {
+    if (!file || !preview?.can_import) return;
+    await action.run(async () => {
+      const result = await importAdminHouseholdCsv(communityId, file);
+      await onImported(result);
+    });
+  }
+
+  const visibleRows = preview?.rows.slice(0, 100) ?? [];
+  return (
+    <Dialog title="Importar viviendas desde CSV" onClose={onClose}>
+      <div className="admin-csv-form">
+        <p className="muted">
+          Crea viviendas nuevas sin modificar las que ya existen. El correo y el
+          estado son opcionales.
+        </p>
+        <Notice kind="info">
+          Columnas: <strong>codigo_vivienda</strong>, <strong>correo</strong> y{" "}
+          <strong>activa</strong>. Se aceptan archivos separados por punto y coma
+          o coma.
+        </Notice>
+        <Button variant="secondary" onClick={downloadHouseholdCsvTemplate}>
+          Descargar plantilla CSV
+        </Button>
+        <label className="admin-form-field">
+          <span>Archivo CSV</span>
+          <input type="file" accept=".csv,text/csv" onChange={selectFile} />
+          <small className="field-hint">Máximo 2.000 viviendas y 1 MB.</small>
+        </label>
+        <Feedback error={fileError || action.error} />
+        {file && !preview && (
+          <Button disabled={action.busy} onClick={review}>
+            {action.busy ? "Revisando…" : "Revisar archivo"}
+          </Button>
+        )}
+        {preview && (
+          <>
+            <div className="admin-csv-summary" aria-live="polite">
+              <div><strong>{preview.new_count}</strong><span>Nuevas</span></div>
+              <div><strong>{preview.existing_count}</strong><span>Ya existen</span></div>
+              <div><strong>{preview.error_count}</strong><span>Con errores</span></div>
+            </div>
+            {preview.error_count > 0 && (
+              <Notice kind="error">
+                Corrige todas las filas con errores y vuelve a seleccionar el archivo.
+                No se ha creado ninguna vivienda.
+              </Notice>
+            )}
+            <div className="admin-csv-table-wrap">
+              <table className="admin-csv-table">
+                <thead>
+                  <tr><th>Línea</th><th>Vivienda</th><th>Correo</th><th>Resultado</th></tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((row) => (
+                    <tr key={row.line}>
+                      <td>{row.line}</td>
+                      <td>{row.code || "—"}</td>
+                      <td>{row.email ?? "—"}</td>
+                      <td>
+                        <Badge
+                          tone={
+                            row.status === "new"
+                              ? "green"
+                              : row.status === "error"
+                                ? "red"
+                                : "amber"
+                          }
+                        >
+                          {row.status === "new"
+                            ? "Nueva"
+                            : row.status === "existing"
+                              ? "Ya existe"
+                              : "Error"}
+                        </Badge>
+                        {row.message && <span className="admin-csv-message">{row.message}</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {preview.total_rows > visibleRows.length && (
+              <p className="field-hint">
+                Se muestran las primeras {visibleRows.length} de {preview.total_rows} filas.
+              </p>
+            )}
+          </>
+        )}
+        <div className="dialog-actions">
+          <Button variant="secondary" disabled={action.busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            disabled={action.busy || !preview?.can_import}
+            onClick={confirm}
+          >
+            {action.busy && preview
+              ? "Importando…"
+              : `Importar ${preview?.new_count ?? 0} viviendas`}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
   );
 }
 

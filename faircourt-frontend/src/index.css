@@ -2377,6 +2377,12 @@ details {
 .admin-section-heading .eyebrow {
   margin-bottom: 5px;
 }
+.admin-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .admin-household-explanation {
   margin: -8px 0 18px;
 }
@@ -2446,6 +2452,71 @@ details {
 .admin-household-form {
   display: grid;
   gap: 16px;
+}
+.dialog:has(.admin-csv-form) {
+  width: min(880px, calc(100vw - 32px));
+}
+.admin-csv-form {
+  display: grid;
+  gap: 16px;
+}
+.admin-csv-form > p {
+  margin: 0;
+}
+.admin-csv-form > .button {
+  justify-self: start;
+}
+.admin-csv-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.admin-csv-summary div {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8faf5;
+}
+.admin-csv-summary strong {
+  font-size: 20px;
+}
+.admin-csv-summary span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.admin-csv-table-wrap {
+  max-height: 310px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.admin-csv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.admin-csv-table th,
+.admin-csv-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.admin-csv-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  color: var(--muted);
+}
+.admin-csv-message {
+  display: block;
+  max-width: 250px;
+  margin-top: 5px;
+  color: var(--muted);
 }
 .admin-access-current {
   display: grid;
@@ -2694,6 +2765,9 @@ details {
 :root[data-theme="dark"] .admin-household-icon {
   background: #18342b;
   color: #c4db91;
+}
+:root[data-theme="dark"] .admin-csv-summary div {
+  background: #15241f;
 }
 :root[data-theme="dark"] .admin-access-current {
   background: #102721;

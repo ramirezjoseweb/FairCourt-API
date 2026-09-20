@@ -8,6 +8,7 @@ import type {
   AdminAuditEntry,
   AdminFacility,
   AdminHousehold,
+  AdminHouseholdCsvPreview,
   CommunityPolicy,
 } from "../src/api/admin";
 
@@ -445,6 +446,88 @@ export async function setup(
       data = state.adminCommunities.find(
         (community) => community.id === Number(path.split("/")[3]),
       );
+    else if (path.match(/^\/admin\/communities\/\d+\/household-import\/(preview|confirm)$/)) {
+      const communityId = Number(path.split("/")[3]);
+      const rows = state.adminHouseholds.get(communityId) ?? [];
+      const body = request.postDataJSON() as {
+        file_name: string;
+        csv_text: string;
+      };
+      const lines = body.csv_text
+        .replace(/^\ufeff/, "")
+        .split(/\r?\n/)
+        .filter((line) => line.trim());
+      const delimiter = lines[0].includes(";") ? ";" : ",";
+      const headers = lines[0].split(delimiter).map((value) => value.trim());
+      const codeIndex = headers.indexOf("codigo_vivienda");
+      const emailIndex = headers.indexOf("correo");
+      const activeIndex = headers.indexOf("activa");
+      const existingCodes = new Set(rows.map((row) => row.code.toLowerCase()));
+      const existingEmails = new Set(
+        [...state.adminHouseholds.values()]
+          .flat()
+          .flatMap((row) => (row.resident_email ? [row.resident_email] : [])),
+      );
+      const previewRows = lines.slice(1).map((line, index) => {
+        const values = line.split(delimiter).map((value) => value.trim());
+        const code = values[codeIndex] ?? "";
+        const email = emailIndex >= 0 ? values[emailIndex]?.toLowerCase() || null : null;
+        const activeValue = activeIndex >= 0 ? values[activeIndex]?.toLowerCase() : "";
+        const isActive = !["0", "no", "false", "inactiva"].includes(activeValue);
+        const exists = existingCodes.has(code.toLowerCase());
+        const emailTaken = Boolean(email && existingEmails.has(email));
+        return {
+          line: index + 2,
+          code,
+          email,
+          is_active: isActive,
+          status: exists ? "existing" as const : emailTaken ? "error" as const : "new" as const,
+          message: exists
+            ? "Ya existe y no se modificará."
+            : emailTaken
+              ? "El correo ya está asociado a otra cuenta."
+              : null,
+        };
+      });
+      const preview: AdminHouseholdCsvPreview = {
+        rows: previewRows,
+        total_rows: previewRows.length,
+        new_count: previewRows.filter((row) => row.status === "new").length,
+        existing_count: previewRows.filter((row) => row.status === "existing").length,
+        error_count: previewRows.filter((row) => row.status === "error").length,
+        can_import:
+          previewRows.some((row) => row.status === "new") &&
+          previewRows.every((row) => row.status !== "error"),
+      };
+      if (path.endsWith("/confirm")) {
+        const created = previewRows
+          .filter((row) => row.status === "new")
+          .map((row, index): AdminHousehold => ({
+            id: Math.max(0, ...rows.map((household) => household.id)) + index + 1,
+            community_id: communityId,
+            code: row.code,
+            is_active: row.is_active,
+            strikes: 0,
+            suspended_until: null,
+            resident_email: row.email,
+            created_at: stamp(9),
+          }));
+        rows.push(...created);
+        state.adminCommunities.find(
+          (community) => community.id === communityId,
+        )!.household_count += created.length;
+        state.adminAudit.get(communityId)?.unshift({
+          id: 49,
+          event: "ADMIN_HOUSEHOLDS_CSV_IMPORTED",
+          user_id: 90,
+          household_id: null,
+          reservation_id: null,
+          metadata_json: JSON.stringify({ created_count: created.length }),
+          created_at: stamp(12),
+        });
+        data = { created_count: created.length, households: created };
+      } else data = preview;
+    }
     else if (path.match(/^\/admin\/communities\/\d+\/households$/)) {
       const communityId = Number(path.split("/")[3]);
       const rows = state.adminHouseholds.get(communityId) ?? [];

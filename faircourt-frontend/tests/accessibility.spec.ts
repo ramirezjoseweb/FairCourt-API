@@ -140,6 +140,12 @@ for (const theme of ["light", "dark"] as const) {
       ).toBeVisible();
       await check("Formulario administrativo de viviendas");
       await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Importar CSV" }).click();
+      await expect(
+        page.getByRole("dialog", { name: "Importar viviendas desde CSV" }),
+      ).toBeVisible();
+      await check("Importación administrativa de viviendas");
+      await page.keyboard.press("Escape");
       await page
         .getByRole("article", { name: "GRP0001", exact: true })
         .getByRole("button", { name: "Editar GRP0001" })

@@ -27,11 +27,13 @@ from app.models import (
     UserRole,
 )
 from app.routers.admin import (
+    confirm_admin_household_import,
     create_admin_household,
     create_admin_facility,
     list_admin_households,
     list_admin_communities,
     list_admin_facilities,
+    preview_admin_household_import,
     read_admin_community_policy,
     read_private_admin_audit,
     request_admin_otp,
@@ -48,6 +50,7 @@ from app.schemas import (
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
     AdminHouseholdAccessUpdateIn,
+    AdminHouseholdCsvIn,
     AdminHouseholdUpdateIn,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
@@ -532,6 +535,104 @@ class AdminAccessTests(unittest.TestCase):
             _admin=self.admin,
         )
         self.assertEqual(entries[0].event, "ADMIN_HOUSEHOLD_ACCESS_ASSIGNED")
+
+    def test_admin_previews_and_imports_households_only_in_target_community(self) -> None:
+        existing = Household(community_id=self.community_b.id, code="B-EXISTE")
+        self.db.add(existing)
+        self.db.commit()
+        payload = AdminHouseholdCsvIn(
+            file_name="listado comunidad b.csv",
+            csv_text=(
+                "\ufeffcodigo_vivienda;correo;activa\n"
+                "GRP0001;nuevo@example.com;sí\n"
+                "B-EXISTE;;no\n"
+                "B-002;;0\n"
+            ),
+        )
+
+        preview = preview_admin_household_import(
+            community_id=self.community_b.id,
+            payload=payload,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(preview["total_rows"], 3)
+        self.assertEqual(preview["new_count"], 2)
+        self.assertEqual(preview["existing_count"], 1)
+        self.assertEqual(preview["error_count"], 0)
+        self.assertTrue(preview["can_import"])
+
+        imported = confirm_admin_household_import(
+            community_id=self.community_b.id,
+            payload=payload,
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(imported["created_count"], 2)
+        imported_by_code = {row["code"]: row for row in imported["households"]}
+        self.assertEqual(imported_by_code["GRP0001"]["resident_email"], "nuevo@example.com")
+        self.assertFalse(imported_by_code["B-002"]["is_active"])
+        self.assertEqual(
+            self.db.query(Household)
+            .filter(Household.community_id == self.community_a.id)
+            .count(),
+            1,
+        )
+        entry = read_private_admin_audit(
+            community_id=self.community_b.id,
+            db=self.db,
+            _admin=self.admin,
+        )[0]
+        self.assertEqual(entry.event, "ADMIN_HOUSEHOLDS_CSV_IMPORTED")
+        self.assertNotIn("nuevo@example.com", entry.metadata_json)
+
+    def test_household_csv_import_is_atomic_when_any_row_has_an_error(self) -> None:
+        payload = AdminHouseholdCsvIn(
+            file_name="viviendas.csv",
+            csv_text=(
+                "codigo_vivienda,correo,activa\n"
+                "B-VALIDA,nueva@example.com,si\n"
+                "B-ERROR,resident@example.com,si\n"
+            ),
+        )
+        preview = preview_admin_household_import(
+            community_id=self.community_b.id,
+            payload=payload,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(preview["new_count"], 1)
+        self.assertEqual(preview["error_count"], 1)
+        self.assertFalse(preview["can_import"])
+
+        with self.assertRaises(HTTPException) as rejected:
+            confirm_admin_household_import(
+                community_id=self.community_b.id,
+                payload=payload,
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(rejected.exception.status_code, 422)
+        self.assertIsNone(
+            self.db.query(Household)
+            .filter(Household.community_id == self.community_b.id)
+            .filter(Household.code_normalized == "B-VALIDA")
+            .first()
+        )
+
+    def test_household_csv_preview_rejects_unknown_columns(self) -> None:
+        with self.assertRaises(HTTPException) as rejected:
+            preview_admin_household_import(
+                community_id=self.community_b.id,
+                payload=AdminHouseholdCsvIn(
+                    file_name="viviendas.csv",
+                    csv_text="codigo_vivienda;propietario\nB-001;Nombre privado\n",
+                ),
+                db=self.db,
+                _admin=self.admin,
+            )
+        self.assertEqual(rejected.exception.status_code, 422)
+        self.assertIn("Columnas no reconocidas", rejected.exception.detail)
 
     def test_admin_updates_basic_policy_only_for_target_community(self) -> None:
         updated = update_admin_basic_policy(
