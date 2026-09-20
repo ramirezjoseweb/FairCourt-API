@@ -476,6 +476,41 @@ export async function setup(
         data = created;
       } else data = rows;
     }
+    else if (path.match(/^\/admin\/communities\/\d+\/households\/\d+$/)) {
+      const [, , , communityIdText, , householdIdText] = path.split("/");
+      const communityId = Number(communityIdText);
+      const householdId = Number(householdIdText);
+      const rows = state.adminHouseholds.get(communityId) ?? [];
+      const index = rows.findIndex((household) => household.id === householdId);
+      const previous = rows[index];
+      const body = request.postDataJSON() as {
+        code: string;
+        is_active: boolean;
+      };
+      const updated: AdminHousehold = {
+        ...previous,
+        code: body.code.trim(),
+        is_active: body.is_active,
+      };
+      rows[index] = updated;
+      const onlyStatusChanged =
+        previous.code === updated.code &&
+        previous.is_active !== updated.is_active;
+      state.adminAudit.get(communityId)?.unshift({
+        id: updated.is_active ? 46 : 45,
+        event: onlyStatusChanged
+          ? updated.is_active
+            ? "ADMIN_HOUSEHOLD_ACTIVATED"
+            : "ADMIN_HOUSEHOLD_DEACTIVATED"
+          : "ADMIN_HOUSEHOLD_UPDATED",
+        user_id: 90,
+        household_id: null,
+        reservation_id: null,
+        metadata_json: JSON.stringify({ household_id: updated.id }),
+        created_at: stamp(10),
+      });
+      data = updated;
+    }
     else if (path.match(/^\/admin\/communities\/\d+\/facilities$/)) {
       const communityId = Number(path.split("/")[3]);
       const rows = state.adminFacilities.get(communityId) ?? [];

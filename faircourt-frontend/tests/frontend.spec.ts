@@ -159,6 +159,51 @@ test("admin: separate OTP, community selector and private context", async ({
   ).toEqual({ code: "GRP0501" });
   await expect(page.getByText("ADMIN_HOUSEHOLD_CREATED")).toBeVisible();
 
+  const linkedHousehold = householdsRegion.getByRole("article", {
+    name: "GRP0001",
+    exact: true,
+  });
+  await linkedHousehold
+    .getByRole("button", { name: "Editar GRP0001" })
+    .click();
+  const editHouseholdDialog = page.getByRole("dialog", {
+    name: "Editar GRP0001",
+  });
+  await editHouseholdDialog
+    .getByLabel("Código de vivienda")
+    .fill("GRP0001-A");
+  await editHouseholdDialog.getByLabel("Vivienda activa").uncheck();
+  await expect(editHouseholdDialog).toContainText(
+    "Sus reservas existentes no se cancelan",
+  );
+  await editHouseholdDialog
+    .getByRole("button", { name: "Guardar cambios" })
+    .click();
+  const renamedHousehold = householdsRegion.getByRole("article", {
+    name: "GRP0001-A",
+    exact: true,
+  });
+  await expect(renamedHousehold.getByText("Inactiva", { exact: true })).toBeVisible();
+  expect(
+    state.requests.find(
+      (row) =>
+        row.path === "/admin/communities/1/households/1" &&
+        row.method === "PUT",
+    )?.body,
+  ).toEqual({ code: "GRP0001-A", is_active: false });
+  await expect(page.getByText("ADMIN_HOUSEHOLD_UPDATED")).toBeVisible();
+
+  await renamedHousehold
+    .getByRole("button", { name: "Editar GRP0001-A" })
+    .click();
+  await page.getByRole("dialog").getByLabel("Vivienda activa").check();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Guardar cambios" })
+    .click();
+  await expect(renamedHousehold.getByText("Activa", { exact: true })).toBeVisible();
+  await expect(page.getByText("ADMIN_HOUSEHOLD_ACTIVATED")).toBeVisible();
+
   await page.getByRole("button", { name: "Nueva instalación" }).click();
   const createDialog = page.getByRole("dialog", { name: "Nueva instalación" });
   await createDialog.getByLabel("Nombre visible").fill("Piscina");

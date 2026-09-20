@@ -66,6 +66,10 @@ class AdminHouseholdCreateIn(BaseModel):
         return normalized
 
 
+class AdminHouseholdUpdateIn(AdminHouseholdCreateIn):
+    is_active: bool
+
+
 class AdminHouseholdOut(BaseModel):
     id: int
     community_id: int

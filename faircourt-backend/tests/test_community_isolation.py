@@ -202,6 +202,27 @@ class CommunityIsolationTests(unittest.TestCase):
         self.assertEqual(audit.community_id, self.community_b.id)
         self.assertEqual(audit.household_id, self.household_b.id)
 
+    def test_inactive_household_cannot_request_otp(self) -> None:
+        self.household_b.is_active = False
+        self.db.commit()
+
+        with self.assertRaises(HTTPException) as raised:
+            request_otp(
+                payload=RequestOTPIn(
+                    community_slug="community-b",
+                    house_code=self.household_b.code,
+                    email=self.user_b.email,
+                ),
+                db=self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 404)
+        self.assertEqual(
+            raised.exception.detail,
+            "Código de vivienda no válido o inactivo.",
+        )
+        self.assertNotIn(self.household_b.code, raised.exception.detail)
+        self.assertEqual(self.db.query(AuthOTP).count(), 0)
+
     def test_cross_community_facility_cannot_be_reserved(self) -> None:
         tomorrow_at_nine = (datetime.now() + timedelta(days=1)).replace(
             hour=9,

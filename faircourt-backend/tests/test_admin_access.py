@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -20,6 +21,7 @@ from app.models import (
     CommunityPolicy,
     Facility,
     Household,
+    Reservation,
     User,
     UserRole,
 )
@@ -34,6 +36,7 @@ from app.routers.admin import (
     request_admin_otp,
     select_admin_community,
     update_admin_facility,
+    update_admin_household,
     update_admin_basic_policy,
     verify_admin_otp,
 )
@@ -42,6 +45,7 @@ from app.schemas import (
     AdminBasicPolicyUpdateIn,
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
+    AdminHouseholdUpdateIn,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
 )
@@ -331,6 +335,96 @@ class AdminAccessTests(unittest.TestCase):
             ["ADMIN_HOUSEHOLD_CREATED"],
         )
         self.assertEqual(get_my_audit_logs(db=self.db, current_user=self.resident), [])
+
+    def test_admin_edits_and_deactivates_household_without_cancelling_reservations(self) -> None:
+        start_at = datetime.now() + timedelta(days=1)
+        reservation = Reservation(
+            community_id=self.community_a.id,
+            household_id=self.household.id,
+            facility_id=self.facility.id,
+            start_at=start_at,
+            end_at=start_at + timedelta(hours=1),
+            status="ACTIVE",
+        )
+        self.db.add(reservation)
+        self.db.commit()
+        resident_token, _ = create_access_token(
+            subject=self.resident.email,
+            community_id=self.community_a.id,
+            role=UserRole.RESIDENT.value,
+        )
+
+        updated = update_admin_household(
+            community_id=self.community_a.id,
+            household_id=self.household.id,
+            payload=AdminHouseholdUpdateIn(
+                code="GRP 0001 renovado",
+                is_active=False,
+            ),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(updated["code"], "GRP 0001 renovado")
+        self.assertFalse(updated["is_active"])
+        self.assertTrue(self.resident.is_active)
+        self.assertEqual(self.db.get(Reservation, reservation.id).status, "ACTIVE")
+
+        with self.assertRaises(HTTPException) as inactive_session:
+            get_current_user(
+                credentials=HTTPAuthorizationCredentials(
+                    scheme="Bearer",
+                    credentials=resident_token,
+                ),
+                db=self.db,
+            )
+        self.assertEqual(inactive_session.exception.status_code, 403)
+        self.assertEqual(inactive_session.exception.detail, "La vivienda está inactiva.")
+
+        with self.assertRaises(HTTPException) as crossed:
+            update_admin_household(
+                community_id=self.community_b.id,
+                household_id=self.household.id,
+                payload=AdminHouseholdUpdateIn(
+                    code="No debe cambiar",
+                    is_active=True,
+                ),
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(crossed.exception.status_code, 404)
+
+        reactivated = update_admin_household(
+            community_id=self.community_a.id,
+            household_id=self.household.id,
+            payload=AdminHouseholdUpdateIn(
+                code="GRP 0001 renovado",
+                is_active=True,
+            ),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertTrue(reactivated["is_active"])
+        authenticated = get_current_user(
+            credentials=HTTPAuthorizationCredentials(
+                scheme="Bearer",
+                credentials=resident_token,
+            ),
+            db=self.db,
+        )
+        self.assertEqual(authenticated.id, self.resident.id)
+
+        events = [
+            entry.event
+            for entry in read_private_admin_audit(
+                community_id=self.community_a.id,
+                db=self.db,
+                _admin=self.admin,
+            )
+        ]
+        self.assertEqual(
+            events,
+            ["ADMIN_HOUSEHOLD_ACTIVATED", "ADMIN_HOUSEHOLD_UPDATED"],
+        )
 
     def test_admin_updates_basic_policy_only_for_target_community(self) -> None:
         updated = update_admin_basic_policy(

@@ -51,6 +51,13 @@ el código vinculará la cuenta mediante el flujo OTP habitual. El panel muestra
 si la vivienda tiene ya una cuenta vinculada, y el alta queda registrada en la
 auditoría administrativa privada.
 
+Desde la misma lista se puede editar el código y activar o desactivar una
+vivienda. Una vivienda inactiva no puede solicitar OTP ni continuar utilizando
+una sesión residencial abierta. La cuenta vinculada y las reservas existentes
+se conservan para que la operación sea reversible; únicamente se bloquean el
+acceso y las nuevas acciones. El residente recibe un mensaje genérico de
+vivienda inactiva, sin información sobre el motivo administrativo.
+
 En **Instalaciones**, el administrador puede dar de alta un espacio y modificar
 su nombre, código interno, categoría, descripción, prioridad, horario general y
 duración de las reservas. También puede indicar si está activo y si admite

@@ -26,6 +26,7 @@ from app.schemas import (
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
     AdminHouseholdOut,
+    AdminHouseholdUpdateIn,
     AdminMeOut,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
@@ -104,6 +105,23 @@ def _household_summary(household: Household) -> dict:
         "resident_email": household.user.email if household.user else None,
         "created_at": household.created_at,
     }
+
+
+def _household_or_404(
+    db: Session,
+    community_id: int,
+    household_id: int,
+) -> Household:
+    household = (
+        db.query(Household)
+        .options(joinedload(Household.user))
+        .filter(Household.id == household_id)
+        .filter(Household.community_id == community_id)
+        .first()
+    )
+    if not household:
+        raise HTTPException(status_code=404, detail="Vivienda no encontrada.")
+    return household
 
 
 @router.post("/auth/request-otp", response_model=MessageOut)
@@ -302,6 +320,75 @@ def create_admin_household(
     )
     db.commit()
     db.refresh(household)
+    return _household_summary(household)
+
+
+@router.put(
+    "/communities/{community_id}/households/{household_id}",
+    response_model=AdminHouseholdOut,
+)
+def update_admin_household(
+    community_id: int,
+    household_id: int,
+    payload: AdminHouseholdUpdateIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    household = _household_or_404(db, community_id, household_id)
+    normalized_code = normalize_household_code(payload.code)
+    duplicate = (
+        db.query(Household)
+        .filter(Household.community_id == community_id)
+        .filter(Household.code_normalized == normalized_code)
+        .filter(Household.id != household.id)
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una vivienda con ese código en la comunidad.",
+        )
+
+    changes = {}
+    if household.code != payload.code:
+        changes["code"] = {"from": household.code, "to": payload.code}
+        household.code = payload.code
+    if household.is_active != payload.is_active:
+        changes["is_active"] = {
+            "from": household.is_active,
+            "to": payload.is_active,
+        }
+        household.is_active = payload.is_active
+
+    if changes:
+        try:
+            db.flush()
+        except IntegrityError as error:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe una vivienda con ese código en la comunidad.",
+            ) from error
+        event = "ADMIN_HOUSEHOLD_UPDATED"
+        if set(changes) == {"is_active"}:
+            event = (
+                "ADMIN_HOUSEHOLD_ACTIVATED"
+                if household.is_active
+                else "ADMIN_HOUSEHOLD_DEACTIVATED"
+            )
+        log_admin_event(
+            db,
+            event=event,
+            admin_user_id=admin.id,
+            community_id=community_id,
+            metadata={
+                "household_id": household.id,
+                "changes": changes,
+            },
+        )
+        db.commit()
+        db.refresh(household)
     return _household_summary(household)
 
 

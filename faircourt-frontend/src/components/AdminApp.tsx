@@ -12,6 +12,7 @@ import {
   selectAdminCommunity,
   updateAdminBasicPolicy,
   updateAdminFacility,
+  updateAdminHousehold,
   verifyAdminOtp,
 } from "../api/admin";
 import type {
@@ -19,7 +20,7 @@ import type {
   AdminFacility,
   AdminFacilityInput,
   AdminHousehold,
-  AdminHouseholdInput,
+  AdminHouseholdUpdateInput,
   BasicPolicyInput,
   CommunityPolicy,
   CommunitySummary,
@@ -351,7 +352,9 @@ function CommunityWorkspace({
   const [households, setHouseholds] = useState(initialHouseholds);
   const [householdCount, setHouseholdCount] = useState(community.household_count);
   const [householdSearch, setHouseholdSearch] = useState("");
-  const [householdFormOpen, setHouseholdFormOpen] = useState(false);
+  const [householdForm, setHouseholdForm] = useState<
+    AdminHousehold | "new" | null
+  >(null);
   const [auditItems, setAuditItems] = useState(audit);
   const [policyValue, setPolicyValue] = useState(policy);
   const [policyFormOpen, setPolicyFormOpen] = useState(false);
@@ -381,18 +384,29 @@ function CommunityWorkspace({
   );
   const visibleHouseholds = filteredHouseholds.slice(0, 50);
 
-  async function saveHousehold(payload: AdminHouseholdInput) {
-    const success = await action.run(async () => {
-      const created = await createAdminHousehold(community.id, payload);
-      setHouseholds((current) =>
-        [...current, created].sort((left, right) =>
-          left.code.localeCompare(right.code, "es", { numeric: true }),
-        ),
-      );
-      setHouseholdCount((current) => current + 1);
-      setAuditItems(await getAdminCommunityAudit(community.id));
-    }, "La vivienda se ha creado.");
-    if (success) setHouseholdFormOpen(false);
+  async function saveHousehold(payload: AdminHouseholdUpdateInput) {
+    const editing = householdForm !== "new" ? householdForm : undefined;
+    const success = await action.run(
+      async () => {
+        const saved = editing
+          ? await updateAdminHousehold(
+              community.id,
+              editing.id,
+              payload,
+            )
+          : await createAdminHousehold(community.id, { code: payload.code });
+        setHouseholds((current) =>
+          [...current.filter((item) => item.id !== saved.id), saved].sort(
+            (left, right) =>
+              left.code.localeCompare(right.code, "es", { numeric: true }),
+          ),
+        );
+        if (!editing) setHouseholdCount((current) => current + 1);
+        setAuditItems(await getAdminCommunityAudit(community.id));
+      },
+      editing ? "La vivienda se ha actualizado." : "La vivienda se ha creado.",
+    );
+    if (success) setHouseholdForm(null);
   }
 
   async function saveFacility(payload: AdminFacilityInput) {
@@ -451,7 +465,7 @@ function CommunityWorkspace({
             <p className="eyebrow">RESIDENTES Y ACCESO</p>
             <h2 id="admin-households-title">Viviendas</h2>
           </div>
-          <Button disabled={action.busy} onClick={() => setHouseholdFormOpen(true)}>
+          <Button disabled={action.busy} onClick={() => setHouseholdForm("new")}>
             <Icon name="plus" /> Nueva vivienda
           </Button>
         </div>
@@ -499,6 +513,14 @@ function CommunityWorkspace({
                         <span className="muted small">
                           {household.resident_email ? "Cuenta vinculada" : "Pendiente de acceso"}
                         </span>
+                        <Button
+                          variant="secondary"
+                          disabled={action.busy}
+                          aria-label={`Editar ${household.code}`}
+                          onClick={() => setHouseholdForm(household)}
+                        >
+                          Editar
+                        </Button>
                       </div>
                     </article>
                   );
@@ -639,11 +661,12 @@ function CommunityWorkspace({
           onSave={saveFacility}
         />
       )}
-      {householdFormOpen && (
+      {householdForm && (
         <HouseholdFormDialog
+          household={householdForm === "new" ? undefined : householdForm}
           busy={action.busy}
           error={action.error}
-          onClose={() => setHouseholdFormOpen(false)}
+          onClose={() => setHouseholdForm(null)}
           onSave={saveHousehold}
         />
       )}
@@ -661,25 +684,31 @@ function CommunityWorkspace({
 }
 
 function HouseholdFormDialog({
+  household,
   busy,
   error,
   onClose,
   onSave,
 }: {
+  household?: AdminHousehold;
   busy: boolean;
   error?: string;
   onClose: () => void;
-  onSave: (payload: AdminHouseholdInput) => Promise<void>;
+  onSave: (payload: AdminHouseholdUpdateInput) => Promise<void>;
 }) {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(household?.code ?? "");
+  const [isActive, setIsActive] = useState(household?.is_active ?? true);
 
   return (
-    <Dialog title="Nueva vivienda" onClose={onClose}>
+    <Dialog
+      title={household ? `Editar ${household.code}` : "Nueva vivienda"}
+      onClose={onClose}
+    >
       <form
         className="admin-household-form"
         onSubmit={(event) => {
           event.preventDefault();
-          void onSave({ code: code.trim() });
+          void onSave({ code: code.trim(), is_active: isActive });
         }}
       >
         <label className="admin-form-field">
@@ -697,16 +726,38 @@ function HouseholdFormDialog({
             Debe ser único dentro de {"esta comunidad"}. Puede repetirse en otra comunidad.
           </small>
         </label>
-        <Notice kind="info">
-          No necesitas indicar un correo. La cuenta quedará vinculada cuando el residente solicite su primer OTP.
-        </Notice>
+        {household ? (
+          <>
+            <div className="admin-form-checks">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(event) => setIsActive(event.target.checked)}
+                />
+                <span>Vivienda activa</span>
+              </label>
+            </div>
+            <Notice kind="info">
+              Al desactivarla se bloquean el acceso y las reservas nuevas. Sus reservas existentes no se cancelan.
+            </Notice>
+          </>
+        ) : (
+          <Notice kind="info">
+            No necesitas indicar un correo. La cuenta quedará vinculada cuando el residente solicite su primer OTP.
+          </Notice>
+        )}
         <Feedback error={error} />
         <div className="dialog-actions">
           <Button variant="secondary" disabled={busy} onClick={onClose}>
             Cancelar
           </Button>
           <Button type="submit" disabled={busy || !code.trim()}>
-            {busy ? "Creando…" : "Crear vivienda"}
+            {busy
+              ? "Guardando…"
+              : household
+                ? "Guardar cambios"
+                : "Crear vivienda"}
           </Button>
         </div>
       </form>

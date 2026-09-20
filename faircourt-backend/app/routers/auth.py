@@ -51,7 +51,7 @@ def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
     if not household or not household.is_active:
         raise HTTPException(
             status_code=404,
-            detail=f"Código de vivienda: {payload.house_code} no válido o inactivo."
+            detail="Código de vivienda no válido o inactivo."
         )
 
     # 2) Regla del sistema: solo puede existir un usuario por vivienda
@@ -211,6 +211,8 @@ def verify_otp(payload: VerifyOTPIn, db: Session = Depends(get_db)):
     )
     if not user:
         raise HTTPException(status_code=401, detail="Cuenta no válida para esta comunidad.")
+    if not user.household or not user.household.is_active:
+        raise HTTPException(status_code=403, detail="La vivienda está inactiva.")
     
     # Registrar el evento de verificación de OTP
     log_event(

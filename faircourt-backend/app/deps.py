@@ -74,6 +74,11 @@ def get_current_user(
         )
     if not user.household or user.household.community_id != user.community_id:
         raise unauthorized
+    if not user.household.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La vivienda está inactiva.",
+        )
     return user
 
 

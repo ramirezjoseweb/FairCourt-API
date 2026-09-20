@@ -21,10 +21,11 @@ desarrollo.
 El acceso del administrador de plataforma está en
 http://127.0.0.1:5173/admin. Utiliza un OTP y un token distintos de los del
 residente; después muestra el selector de comunidad y el contexto activo. Desde
-ese espacio permite buscar y crear viviendas, comprobar si tienen una cuenta
-vinculada, crear, editar y desactivar instalaciones y modificar la ventana de
-reserva, límites diarios y semanales y cancelación. Todas estas operaciones se
-limitan a la comunidad seleccionada y tienen trazabilidad administrativa privada.
+ese espacio permite buscar, crear, editar, activar y desactivar viviendas,
+comprobar si tienen una cuenta vinculada, crear, editar y desactivar
+instalaciones y modificar la ventana de reserva, límites diarios y semanales y
+cancelación. Todas estas operaciones se limitan a la comunidad seleccionada y
+tienen trazabilidad administrativa privada.
 
 ## Comprobaciones
 
