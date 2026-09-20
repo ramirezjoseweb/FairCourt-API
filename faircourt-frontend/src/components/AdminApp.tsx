@@ -1,15 +1,20 @@
 import { useState } from "react";
 import {
+  createAdminFacility,
   getAdminCommunities,
   getAdminCommunityAudit,
   getAdminCommunityPolicy,
+  getAdminFacilities,
   getAdminMe,
   requestAdminOtp,
   selectAdminCommunity,
+  updateAdminFacility,
   verifyAdminOtp,
 } from "../api/admin";
 import type {
   AdminAuditEntry,
+  AdminFacility,
+  AdminFacilityInput,
   CommunityPolicy,
   CommunitySummary,
 } from "../api/admin";
@@ -21,6 +26,7 @@ import {
   Badge,
   Brand,
   Button,
+  Dialog,
   Feedback,
   Icon,
   Loading,
@@ -214,17 +220,20 @@ function AdminDashboard({
   const [selected, setSelected] = useState<CommunitySummary>();
   const [policy, setPolicy] = useState<CommunityPolicy>();
   const [audit, setAudit] = useState<AdminAuditEntry[]>([]);
+  const [facilities, setFacilities] = useState<AdminFacility[]>([]);
 
   async function choose(community: CommunitySummary) {
     await action.run(async () => {
       const selectedCommunity = await selectAdminCommunity(community.id);
-      const [communityPolicy, privateAudit] = await Promise.all([
+      const [communityPolicy, privateAudit, communityFacilities] = await Promise.all([
         getAdminCommunityPolicy(community.id),
         getAdminCommunityAudit(community.id),
+        getAdminFacilities(community.id),
       ]);
       setSelected(selectedCommunity);
       setPolicy(communityPolicy);
       setAudit(privateAudit);
+      setFacilities(communityFacilities);
       window.scrollTo({ top: 0 });
     });
   }
@@ -295,10 +304,13 @@ function AdminDashboard({
             community={selected}
             policy={policy}
             audit={audit}
+            facilities={facilities}
             onBack={() => {
               setSelected(undefined);
               setPolicy(undefined);
               setAudit([]);
+              setFacilities([]);
+              communities.reload();
             }}
           />
         )}
@@ -311,13 +323,21 @@ function CommunityWorkspace({
   community,
   policy,
   audit,
+  facilities: initialFacilities,
   onBack,
 }: {
   community: CommunitySummary;
   policy?: CommunityPolicy;
   audit: AdminAuditEntry[];
+  facilities: AdminFacility[];
   onBack: () => void;
 }) {
+  const action = useAction();
+  const [facilities, setFacilities] = useState(initialFacilities);
+  const [auditItems, setAuditItems] = useState(audit);
+  const [facilityForm, setFacilityForm] = useState<AdminFacility | "new" | null>(
+    null,
+  );
   const policyItems = policy
     ? [
         ["Ventana de reserva", `${policy.booking_window_days} días`],
@@ -332,6 +352,30 @@ function CommunityWorkspace({
         ["Votaciones", policy.unlock_voting_enabled ? "Activadas" : "Desactivadas"],
       ]
     : [];
+
+  async function saveFacility(payload: AdminFacilityInput) {
+    const editing = facilityForm !== "new" ? facilityForm : undefined;
+    const success = await action.run(
+      async () => {
+        const saved = editing
+          ? await updateAdminFacility(community.id, editing.id, payload)
+          : await createAdminFacility(community.id, payload);
+        setFacilities((current) =>
+          [...current.filter((item) => item.id !== saved.id), saved].sort(
+            (left, right) =>
+              left.priority - right.priority ||
+              left.name.localeCompare(right.name, "es"),
+          ),
+        );
+        setAuditItems(await getAdminCommunityAudit(community.id));
+      },
+      editing
+        ? "La instalación se ha actualizado."
+        : "La instalación se ha creado.",
+    );
+    if (success) setFacilityForm(null);
+  }
+
   return (
     <section className="page-stack">
       <header className="page-heading">
@@ -339,7 +383,7 @@ function CommunityWorkspace({
           <p className="eyebrow">CONTEXTO ADMINISTRATIVO ACTIVO</p>
           <h1>{community.name}</h1>
           <p className="muted">
-            {community.household_count} viviendas · {community.facility_count} instalaciones · {community.timezone}
+            {community.household_count} viviendas · {facilities.length} instalaciones · {community.timezone}
           </p>
         </div>
         <Button variant="secondary" onClick={onBack}>
@@ -349,6 +393,70 @@ function CommunityWorkspace({
       <Notice kind="info">
         Todas las operaciones de esta pantalla pertenecen exclusivamente a <strong>{community.name}</strong>.
       </Notice>
+      <Feedback error={action.error} message={action.message} />
+      <section className="panel admin-facilities-panel">
+        <div className="section-heading admin-section-heading">
+          <div>
+            <p className="eyebrow">CATÁLOGO DE LA COMUNIDAD</p>
+            <h2>Instalaciones</h2>
+          </div>
+          <Button disabled={action.busy} onClick={() => setFacilityForm("new")}>
+            <Icon name="plus" /> Nueva instalación
+          </Button>
+        </div>
+        {facilities.length ? (
+          <div className="admin-facility-grid">
+            {facilities.map((facility) => {
+              const titleId = `admin-facility-${facility.id}`;
+              return (
+                <article
+                  className={`admin-facility-card ${facility.is_active ? "" : "is-inactive"}`}
+                  key={facility.id}
+                  aria-labelledby={titleId}
+                >
+                  <div className="admin-facility-heading">
+                    <span className="admin-facility-icon">
+                      <Icon name="court" />
+                    </span>
+                    <div>
+                      <h3 id={titleId}>{facility.name}</h3>
+                      <span className="muted small">/{facility.slug}</span>
+                    </div>
+                    <Badge tone={facility.is_active ? "green" : "red"}>
+                      {facility.is_active ? "Activa" : "Inactiva"}
+                    </Badge>
+                  </div>
+                  {facility.description && <p>{facility.description}</p>}
+                  <dl className="admin-facility-details">
+                    <div><dt>Categoría</dt><dd>{facility.category}</dd></div>
+                    <div><dt>Horario</dt><dd>{facility.opening_hour}:00–{facility.closing_hour}:00</dd></div>
+                    <div><dt>Duración</dt><dd>{facility.slot_duration_minutes} min</dd></div>
+                    <div><dt>Orden</dt><dd>{facility.priority}</dd></div>
+                  </dl>
+                  <div className="admin-facility-footer">
+                    <Badge tone={facility.is_reservable ? "green" : "amber"}>
+                      {facility.is_reservable ? "Reservable" : "No reservable"}
+                    </Badge>
+                    <Button
+                      variant="secondary"
+                      disabled={action.busy}
+                      onClick={() => setFacilityForm(facility)}
+                    >
+                      Editar
+                    </Button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="admin-empty-state">
+            <Icon name="court" />
+            <h3>Todavía no hay instalaciones.</h3>
+            <p className="muted">Crea la primera para empezar a configurar sus reservas.</p>
+          </div>
+        )}
+      </section>
       <section className="panel">
         <div className="section-heading">
           <h2>Política efectiva</h2>
@@ -366,11 +474,11 @@ function CommunityWorkspace({
       <section className="panel">
         <div className="section-heading">
           <h2>Auditoría administrativa privada</h2>
-          <span className="section-count">{audit.length}</span>
+          <span className="section-count">{auditItems.length}</span>
         </div>
-        {audit.length ? (
+        {auditItems.length ? (
           <div className="admin-audit-list">
-            {audit.map((entry) => (
+            {auditItems.map((entry) => (
               <article key={entry.id}>
                 <Icon name="history" />
                 <div>
@@ -386,6 +494,212 @@ function CommunityWorkspace({
           <p className="muted">Todavía no hay acciones administrativas registradas.</p>
         )}
       </section>
+      {facilityForm && (
+        <FacilityFormDialog
+          facility={facilityForm === "new" ? undefined : facilityForm}
+          busy={action.busy}
+          error={action.error}
+          onClose={() => setFacilityForm(null)}
+          onSave={saveFacility}
+        />
+      )}
     </section>
+  );
+}
+
+function facilitySlug(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function FacilityFormDialog({
+  facility,
+  busy,
+  error,
+  onClose,
+  onSave,
+}: {
+  facility?: AdminFacility;
+  busy: boolean;
+  error?: string;
+  onClose: () => void;
+  onSave: (payload: AdminFacilityInput) => Promise<void>;
+}) {
+  const [slugTouched, setSlugTouched] = useState(Boolean(facility));
+  const [form, setForm] = useState<AdminFacilityInput>(() => ({
+    slug: facility?.slug ?? "",
+    name: facility?.name ?? "",
+    category: facility?.category ?? "Deporte",
+    description: facility?.description ?? "",
+    icon: facility?.icon ?? "court",
+    priority: facility?.priority ?? 100,
+    is_active: facility?.is_active ?? true,
+    is_reservable: facility?.is_reservable ?? true,
+    opening_hour: facility?.opening_hour ?? 9,
+    closing_hour: facility?.closing_hour ?? 22,
+    slot_duration_minutes: facility?.slot_duration_minutes ?? 60,
+  }));
+  const invalidSchedule = form.opening_hour >= form.closing_hour;
+
+  function setField<K extends keyof AdminFacilityInput>(
+    field: K,
+    value: AdminFacilityInput[K],
+  ) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  return (
+    <Dialog
+      title={facility ? `Editar ${facility.name}` : "Nueva instalación"}
+      onClose={onClose}
+    >
+      <form
+        className="admin-facility-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!invalidSchedule) void onSave(form);
+        }}
+      >
+        <label className="admin-form-field admin-form-field-wide">
+          <span>Nombre visible</span>
+          <input
+            value={form.name}
+            maxLength={120}
+            required
+            autoFocus
+            onChange={(event) => {
+              const name = event.target.value;
+              setForm((current) => ({
+                ...current,
+                name,
+                slug: slugTouched ? current.slug : facilitySlug(name),
+              }));
+            }}
+          />
+        </label>
+        <label className="admin-form-field admin-form-field-wide">
+          <span>Código interno</span>
+          <input
+            value={form.slug}
+            maxLength={80}
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+            required
+            aria-describedby="facility-slug-help"
+            onChange={(event) => {
+              setSlugTouched(true);
+              setField("slug", event.target.value.toLowerCase());
+            }}
+          />
+          <small id="facility-slug-help" className="field-hint">
+            Único dentro de esta comunidad. Usa letras, números y guiones.
+          </small>
+        </label>
+        <label className="admin-form-field">
+          <span>Categoría</span>
+          <input
+            value={form.category}
+            maxLength={80}
+            list="facility-categories"
+            required
+            onChange={(event) => setField("category", event.target.value)}
+          />
+          <datalist id="facility-categories">
+            <option value="Deporte" />
+            <option value="Encuentros" />
+            <option value="Interior" />
+            <option value="Bienestar" />
+          </datalist>
+        </label>
+        <label className="admin-form-field">
+          <span>Orden de aparición</span>
+          <input
+            type="number"
+            min="0"
+            max="9999"
+            value={form.priority}
+            required
+            onChange={(event) => setField("priority", Number(event.target.value))}
+          />
+        </label>
+        <label className="admin-form-field">
+          <span>Hora de apertura</span>
+          <input
+            type="number"
+            min="0"
+            max="23"
+            value={form.opening_hour}
+            required
+            onChange={(event) => setField("opening_hour", Number(event.target.value))}
+          />
+        </label>
+        <label className="admin-form-field">
+          <span>Hora de cierre</span>
+          <input
+            type="number"
+            min="1"
+            max="24"
+            value={form.closing_hour}
+            required
+            onChange={(event) => setField("closing_hour", Number(event.target.value))}
+          />
+        </label>
+        <label className="admin-form-field admin-form-field-wide">
+          <span>Duración de cada reserva</span>
+          <select
+            value={form.slot_duration_minutes}
+            onChange={(event) =>
+              setField("slot_duration_minutes", Number(event.target.value))
+            }
+          >
+            {[30, 45, 60, 90, 120].map((minutes) => (
+              <option key={minutes} value={minutes}>{minutes} minutos</option>
+            ))}
+          </select>
+        </label>
+        <label className="admin-form-field admin-form-field-wide">
+          <span>Descripción</span>
+          <textarea
+            value={form.description ?? ""}
+            maxLength={500}
+            onChange={(event) => setField("description", event.target.value || null)}
+          />
+        </label>
+        <div className="admin-form-checks admin-form-field-wide">
+          <label>
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) => setField("is_active", event.target.checked)}
+            />
+            <span>Instalación activa</span>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={form.is_reservable}
+              onChange={(event) => setField("is_reservable", event.target.checked)}
+            />
+            <span>Admite reservas</span>
+          </label>
+        </div>
+        {invalidSchedule && (
+          <Notice kind="error">La hora de cierre debe ser posterior a la apertura.</Notice>
+        )}
+        <Feedback error={error} />
+        <div className="dialog-actions admin-form-field-wide">
+          <Button variant="secondary" disabled={busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={busy || invalidSchedule}>
+            {busy ? "Guardando…" : facility ? "Guardar cambios" : "Crear instalación"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }

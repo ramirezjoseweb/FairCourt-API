@@ -19,6 +19,8 @@ from app.models import (
     UserRole,
 )
 from app.schemas import (
+    AdminFacilityOut,
+    AdminFacilityWriteIn,
     AdminMeOut,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
@@ -61,6 +63,29 @@ def _community_summary(db: Session, community: Community) -> dict:
             .count()
         ),
     }
+
+
+def _community_or_404(db: Session, community_id: int) -> Community:
+    community = db.get(Community, community_id)
+    if not community:
+        raise HTTPException(status_code=404, detail="Comunidad no encontrada.")
+    return community
+
+
+def _facility_or_404(
+    db: Session,
+    community_id: int,
+    facility_id: int,
+) -> Facility:
+    facility = (
+        db.query(Facility)
+        .filter(Facility.id == facility_id)
+        .filter(Facility.community_id == community_id)
+        .first()
+    )
+    if not facility:
+        raise HTTPException(status_code=404, detail="Instalación no encontrada.")
+    return facility
 
 
 @router.post("/auth/request-otp", response_model=MessageOut)
@@ -193,6 +218,124 @@ def select_admin_community(
 
 
 @router.get(
+    "/communities/{community_id}/facilities",
+    response_model=list[AdminFacilityOut],
+)
+def list_admin_facilities(
+    community_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    return (
+        db.query(Facility)
+        .filter(Facility.community_id == community_id)
+        .order_by(Facility.priority.asc(), Facility.name.asc())
+        .all()
+    )
+
+
+@router.post(
+    "/communities/{community_id}/facilities",
+    response_model=AdminFacilityOut,
+    status_code=201,
+)
+def create_admin_facility(
+    community_id: int,
+    payload: AdminFacilityWriteIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    duplicate = (
+        db.query(Facility)
+        .filter(Facility.community_id == community_id)
+        .filter(Facility.slug == payload.slug)
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una instalación con ese código en la comunidad.",
+        )
+
+    facility = Facility(community_id=community_id, **payload.model_dump())
+    db.add(facility)
+    db.flush()
+    log_admin_event(
+        db,
+        event="ADMIN_FACILITY_CREATED",
+        admin_user_id=admin.id,
+        community_id=community_id,
+        metadata={
+            "facility_id": facility.id,
+            "facility_slug": facility.slug,
+            "settings": payload.model_dump(),
+        },
+    )
+    db.commit()
+    db.refresh(facility)
+    return facility
+
+
+@router.put(
+    "/communities/{community_id}/facilities/{facility_id}",
+    response_model=AdminFacilityOut,
+)
+def update_admin_facility(
+    community_id: int,
+    facility_id: int,
+    payload: AdminFacilityWriteIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    facility = _facility_or_404(db, community_id, facility_id)
+    duplicate = (
+        db.query(Facility)
+        .filter(Facility.community_id == community_id)
+        .filter(Facility.slug == payload.slug)
+        .filter(Facility.id != facility.id)
+        .first()
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una instalación con ese código en la comunidad.",
+        )
+
+    changes = {}
+    for field, value in payload.model_dump().items():
+        previous = getattr(facility, field)
+        if previous != value:
+            changes[field] = {"from": previous, "to": value}
+            setattr(facility, field, value)
+
+    if changes:
+        event = "ADMIN_FACILITY_UPDATED"
+        if set(changes) == {"is_active"}:
+            event = (
+                "ADMIN_FACILITY_ACTIVATED"
+                if facility.is_active
+                else "ADMIN_FACILITY_DEACTIVATED"
+            )
+        log_admin_event(
+            db,
+            event=event,
+            admin_user_id=admin.id,
+            community_id=community_id,
+            metadata={
+                "facility_id": facility.id,
+                "facility_slug": facility.slug,
+                "changes": changes,
+            },
+        )
+        db.commit()
+        db.refresh(facility)
+    return facility
+
+
+@router.get(
     "/communities/{community_id}/policy",
     response_model=CommunityPolicyOut,
 )
@@ -201,8 +344,7 @@ def read_admin_community_policy(
     db: Session = Depends(get_db),
     _admin: User = Depends(require_platform_admin),
 ):
-    if not db.get(Community, community_id):
-        raise HTTPException(status_code=404, detail="Comunidad no encontrada.")
+    _community_or_404(db, community_id)
     return get_community_policy(db, community_id)
 
 
@@ -215,8 +357,7 @@ def read_private_admin_audit(
     db: Session = Depends(get_db),
     _admin: User = Depends(require_platform_admin),
 ):
-    if not db.get(Community, community_id):
-        raise HTTPException(status_code=404, detail="Comunidad no encontrada.")
+    _community_or_404(db, community_id)
     return (
         db.query(AuditLog)
         .filter(AuditLog.community_id == community_id)

@@ -4,6 +4,7 @@ import type { MeResponse } from "../src/api/me";
 import type { Slot, Reservation } from "../src/api/reservations";
 import type { Facility } from "../src/api/facilities";
 import type { UnlockProposal } from "../src/api/unlock";
+import type { AdminAuditEntry, AdminFacility } from "../src/api/admin";
 
 export const day = "2026-09-07";
 export const stamp = (hour: number, date = day) =>
@@ -258,6 +259,43 @@ export async function setup(
         facility_count: 1,
       },
     ],
+    adminFacilities: new Map<number, AdminFacility[]>([
+      [
+        1,
+        facilities.slice(0, 3).map((facility) => ({
+          ...facility,
+          community_id: 1,
+          is_active: true,
+        })),
+      ],
+      [
+        2,
+        [
+          {
+            ...makeFacility(20, "padel", "Pádel", "Deporte", 10),
+            community_id: 2,
+            is_active: true,
+          },
+        ],
+      ],
+    ]),
+    adminAudit: new Map<number, AdminAuditEntry[]>([
+      [
+        1,
+        [
+          {
+            id: 40,
+            event: "ADMIN_COMMUNITY_SELECTED",
+            user_id: 90,
+            household_id: null,
+            reservation_id: null,
+            metadata_json: JSON.stringify({ community_slug: "gran-parque" }),
+            created_at: stamp(8),
+          },
+        ],
+      ],
+      [2, []],
+    ]),
   };
   if (options.authenticated !== false)
     await page.addInitScript(() => {
@@ -280,7 +318,7 @@ export async function setup(
         status: 204,
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
           "Access-Control-Allow-Headers": "*",
         },
       });
@@ -318,6 +356,54 @@ export async function setup(
       data = state.adminCommunities.find(
         (community) => community.id === Number(path.split("/")[3]),
       );
+    else if (path.match(/^\/admin\/communities\/\d+\/facilities$/)) {
+      const communityId = Number(path.split("/")[3]);
+      const rows = state.adminFacilities.get(communityId) ?? [];
+      if (request.method() === "POST") {
+        const body = request.postDataJSON();
+        const created: AdminFacility = {
+          ...body,
+          id: Math.max(0, ...rows.map((facility) => facility.id)) + 1,
+          community_id: communityId,
+        };
+        rows.push(created);
+        state.adminCommunities.find(
+          (community) => community.id === communityId,
+        )!.facility_count = rows.length;
+        state.adminAudit.get(communityId)?.unshift({
+          id: 41,
+          event: "ADMIN_FACILITY_CREATED",
+          user_id: 90,
+          household_id: null,
+          reservation_id: null,
+          metadata_json: JSON.stringify({ facility_id: created.id }),
+          created_at: stamp(9),
+        });
+        data = created;
+      } else data = rows;
+    }
+    else if (path.match(/^\/admin\/communities\/\d+\/facilities\/\d+$/)) {
+      const [, , , communityIdText, , facilityIdText] = path.split("/");
+      const communityId = Number(communityIdText);
+      const facilityId = Number(facilityIdText);
+      const rows = state.adminFacilities.get(communityId) ?? [];
+      const index = rows.findIndex((facility) => facility.id === facilityId);
+      const updated: AdminFacility = {
+        ...rows[index],
+        ...request.postDataJSON(),
+      };
+      rows[index] = updated;
+      state.adminAudit.get(communityId)?.unshift({
+        id: 42,
+        event: "ADMIN_FACILITY_UPDATED",
+        user_id: 90,
+        household_id: null,
+        reservation_id: null,
+        metadata_json: JSON.stringify({ facility_id: updated.id }),
+        created_at: stamp(10),
+      });
+      data = updated;
+    }
     else if (path.match(/^\/admin\/communities\/\d+\/policy$/))
       data = {
         community_id: Number(path.split("/")[3]),
@@ -336,17 +422,7 @@ export async function setup(
         unlock_min_yes_votes: 2,
       };
     else if (path.match(/^\/admin\/communities\/\d+\/audit$/))
-      data = [
-        {
-          id: 40,
-          event: "ADMIN_COMMUNITY_SELECTED",
-          user_id: 90,
-          household_id: null,
-          reservation_id: null,
-          metadata_json: JSON.stringify({ community_slug: "gran-parque" }),
-          created_at: stamp(8),
-        },
-      ];
+      data = state.adminAudit.get(Number(path.split("/")[3])) ?? [];
     else if (path === "/auth/request-otp")
       data = { message: "Código de acceso generado." };
     else if (path === "/auth/verify-otp")

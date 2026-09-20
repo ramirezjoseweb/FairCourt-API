@@ -22,6 +22,7 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 - Reglas de reserva y equidad independientes por comunidad
 - Roles separados de administrador de plataforma y residente
 - Selector administrativo de comunidad con auditoría privada
+- Alta, edición y desactivación de instalaciones desde el panel administrativo
 - Gestión multipista y de espacios comunitarios
 - Catálogo priorizado con Pádel y Tenis en primer lugar
 - Reserva y cancelación de franjas horarias
@@ -133,6 +134,11 @@ El acceso está disponible en `http://localhost:5173/admin`. Tras verificar el
 OTP, el panel obliga a seleccionar la comunidad que se va a gestionar y muestra
 permanentemente ese contexto. Los accesos y selecciones se guardan en una
 auditoría administrativa que no se expone en la auditoría residencial.
+
+Dentro de ese contexto se puede crear y editar el catálogo de instalaciones,
+incluidos su horario general, duración de reserva, prioridad y estados. Las
+instalaciones se desactivan en lugar de eliminarse para conservar el historial;
+los cambios quedan registrados en la auditoría privada.
 
 ## Datos de demostración
 Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1", dentro del portal `faircourt`.

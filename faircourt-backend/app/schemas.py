@@ -2,7 +2,9 @@ from dns.rdataset import from_rdata_list
 from app.models import Household
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field # EmailStr es para validar que el email sea correcto, field es para validar que el campo sea correcto 
+import re
+
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator # EmailStr es para validar que el email sea correcto, field es para validar que el campo sea correcto
 
 # Clase de la petición de OTP 
 class RequestOTPIn(BaseModel):
@@ -67,6 +69,57 @@ class FacilityOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminFacilityWriteIn(BaseModel):
+    slug: str = Field(min_length=1, max_length=80)
+    name: str = Field(min_length=1, max_length=120)
+    category: str = Field(min_length=1, max_length=80)
+    description: str | None = Field(default=None, max_length=500)
+    icon: str = Field(default="court", min_length=1, max_length=50)
+    priority: int = Field(default=100, ge=0, le=9999)
+    is_active: bool = True
+    is_reservable: bool = True
+    opening_hour: int = Field(default=9, ge=0, le=23)
+    closing_hour: int = Field(default=22, ge=1, le=24)
+    slot_duration_minutes: int = Field(default=60, ge=15, le=240)
+
+    @field_validator("slug")
+    @classmethod
+    def normalize_slug(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", normalized):
+            raise ValueError(
+                "El código solo puede contener letras minúsculas, números y guiones."
+            )
+        return normalized
+
+    @field_validator("name", "category", "icon")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Este campo no puede estar vacío.")
+        return normalized
+
+    @field_validator("description")
+    @classmethod
+    def strip_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @model_validator(mode="after")
+    def validate_schedule(self):
+        if self.opening_hour >= self.closing_hour:
+            raise ValueError("La hora de cierre debe ser posterior a la apertura.")
+        return self
+
+
+class AdminFacilityOut(FacilityOut):
+    community_id: int
+    is_active: bool
 
 
 class CommunityPolicyOut(BaseModel):

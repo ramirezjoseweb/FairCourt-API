@@ -24,14 +24,21 @@ from app.models import (
     UserRole,
 )
 from app.routers.admin import (
+    create_admin_facility,
     list_admin_communities,
+    list_admin_facilities,
     read_private_admin_audit,
     request_admin_otp,
     select_admin_community,
+    update_admin_facility,
     verify_admin_otp,
 )
 from app.routers.audit import get_my_audit_logs
-from app.schemas import AdminRequestOTPIn, AdminVerifyOTPIn
+from app.schemas import (
+    AdminFacilityWriteIn,
+    AdminRequestOTPIn,
+    AdminVerifyOTPIn,
+)
 from app.security import create_access_token
 
 
@@ -197,6 +204,82 @@ class AdminAccessTests(unittest.TestCase):
             get_my_audit_logs(db=self.db, current_user=self.resident),
             [],
         )
+
+    def test_admin_manages_facilities_only_inside_selected_community(self) -> None:
+        payload = AdminFacilityWriteIn(
+            slug="tenis",
+            name="Tenis",
+            category="Deporte",
+            description="Pista de tenis comunitaria",
+            priority=20,
+            opening_hour=8,
+            closing_hour=23,
+            slot_duration_minutes=90,
+        )
+        created = create_admin_facility(
+            community_id=self.community_b.id,
+            payload=payload,
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(created.community_id, self.community_b.id)
+        self.assertEqual(created.slug, "tenis")
+
+        facilities_b = list_admin_facilities(
+            community_id=self.community_b.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual([row.slug for row in facilities_b], ["tenis", "padel"])
+
+        with self.assertRaises(HTTPException) as crossed:
+            update_admin_facility(
+                community_id=self.community_a.id,
+                facility_id=created.id,
+                payload=payload,
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(crossed.exception.status_code, 404)
+
+        with self.assertRaises(HTTPException) as duplicate:
+            create_admin_facility(
+                community_id=self.community_b.id,
+                payload=payload,
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(duplicate.exception.status_code, 409)
+
+        updated = update_admin_facility(
+            community_id=self.community_b.id,
+            facility_id=created.id,
+            payload=AdminFacilityWriteIn(
+                **{
+                    **payload.model_dump(),
+                    "name": "Tenis renovado",
+                    "is_active": False,
+                }
+            ),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(updated.name, "Tenis renovado")
+        self.assertFalse(updated.is_active)
+
+        events = [
+            row.event
+            for row in read_private_admin_audit(
+                community_id=self.community_b.id,
+                db=self.db,
+                _admin=self.admin,
+            )
+        ]
+        self.assertEqual(
+            events,
+            ["ADMIN_FACILITY_UPDATED", "ADMIN_FACILITY_CREATED"],
+        )
+        self.assertEqual(get_my_audit_logs(db=self.db, current_user=self.resident), [])
 
 
 if __name__ == "__main__":

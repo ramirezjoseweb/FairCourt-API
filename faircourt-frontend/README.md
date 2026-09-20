@@ -20,7 +20,9 @@ desarrollo.
 
 El acceso del administrador de plataforma está en
 http://127.0.0.1:5173/admin. Utiliza un OTP y un token distintos de los del
-residente; después muestra el selector de comunidad y el contexto activo.
+residente; después muestra el selector de comunidad y el contexto activo. Desde
+ese espacio permite crear, editar y desactivar las instalaciones de la comunidad
+seleccionada, con trazabilidad administrativa privada.
 
 ## Comprobaciones
 

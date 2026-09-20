@@ -43,6 +43,12 @@ Las acciones administrativas se registran en una auditoría privada. Los
 residentes solo pueden consultar el historial de su propia vivienda y nunca
 ven correos administrativos, notas internas ni motivos sensibles.
 
+En **Instalaciones**, el administrador puede dar de alta un espacio y modificar
+su nombre, código interno, categoría, descripción, prioridad, horario general y
+duración de las reservas. También puede indicar si está activo y si admite
+reservas. Una instalación con historial se desactiva; no se elimina. El código
+interno solo tiene que ser único dentro de la comunidad seleccionada.
+
 ## Apariencia clara y oscura
 FairCourt utiliza inicialmente el tema claro u oscuro configurado en el
 dispositivo. El botón con forma de luna o sol permite cambiarlo tanto en la

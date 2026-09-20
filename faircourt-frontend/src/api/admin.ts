@@ -39,6 +39,27 @@ export type CommunityPolicy = {
   unlock_min_yes_votes: number;
 };
 
+export type AdminFacility = {
+  id: number;
+  community_id: number;
+  slug: string;
+  name: string;
+  category: string;
+  description: string | null;
+  icon: string;
+  priority: number;
+  is_active: boolean;
+  is_reservable: boolean;
+  opening_hour: number;
+  closing_hour: number;
+  slot_duration_minutes: number;
+};
+
+export type AdminFacilityInput = Omit<
+  AdminFacility,
+  "id" | "community_id"
+>;
+
 export type AdminAuditEntry = {
   id: number;
   event: string;
@@ -81,6 +102,33 @@ export function selectAdminCommunity(communityId: number) {
 export function getAdminCommunityPolicy(communityId: number) {
   return adminApiRequest<CommunityPolicy>(
     `/admin/communities/${communityId}/policy`,
+  );
+}
+
+export function getAdminFacilities(communityId: number) {
+  return adminApiRequest<AdminFacility[]>(
+    `/admin/communities/${communityId}/facilities`,
+  );
+}
+
+export function createAdminFacility(
+  communityId: number,
+  facility: AdminFacilityInput,
+) {
+  return adminApiRequest<AdminFacility>(
+    `/admin/communities/${communityId}/facilities`,
+    { method: "POST", body: JSON.stringify(facility) },
+  );
+}
+
+export function updateAdminFacility(
+  communityId: number,
+  facilityId: number,
+  facility: AdminFacilityInput,
+) {
+  return adminApiRequest<AdminFacility>(
+    `/admin/communities/${communityId}/facilities/${facilityId}`,
+    { method: "PUT", body: JSON.stringify(facility) },
   );
 }
 

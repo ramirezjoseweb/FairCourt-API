@@ -24,7 +24,8 @@ body {
 }
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 button,
@@ -79,7 +80,8 @@ strong {
   font-weight: 600;
 }
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   min-width: 0;
   border: 1px solid #d5ddd3;
@@ -93,7 +95,8 @@ textarea::placeholder {
   color: #7b837b;
 }
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: #52775e;
 }
 input[type="date"] {
@@ -2364,6 +2367,138 @@ details {
 .admin-policy-grid span {
   color: var(--muted);
 }
+.admin-section-heading {
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+.admin-section-heading .eyebrow {
+  margin-bottom: 5px;
+}
+.admin-facility-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.admin-facility-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fbfcf8;
+}
+.admin-facility-card.is-inactive {
+  background: #f7f7f4;
+}
+.admin-facility-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.admin-facility-heading h3,
+.admin-facility-heading span {
+  overflow-wrap: anywhere;
+}
+.admin-facility-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #edf2e5;
+  color: #577046;
+}
+.admin-facility-card > p {
+  color: var(--muted);
+  font-size: 12px;
+}
+.admin-facility-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--line);
+}
+.admin-facility-details > div {
+  padding: 12px 0;
+}
+.admin-facility-details dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+.admin-facility-details dd {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-facility-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+.admin-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 42px 18px;
+  border: 1px dashed #cbd6c6;
+  border-radius: 13px;
+  text-align: center;
+}
+.admin-empty-state > .icon {
+  width: 32px;
+  height: 32px;
+  color: #6f8759;
+}
+.dialog:has(.admin-facility-form) {
+  max-width: 720px;
+}
+.admin-facility-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.admin-form-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+.admin-form-field-wide,
+.admin-facility-form > .notice {
+  grid-column: 1 / -1;
+}
+.admin-form-field select {
+  min-height: 46px;
+  border: 1px solid #d5ddd3;
+  border-radius: 9px;
+  padding: 11px 15px;
+  background: #fff;
+  color: var(--text);
+}
+.admin-form-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8faf5;
+}
+.admin-form-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.admin-form-checks input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+}
 .admin-audit-list article {
   display: flex;
   align-items: center;
@@ -2412,8 +2547,18 @@ details {
     display: none;
   }
   .admin-community-grid,
-  .admin-policy-grid {
+  .admin-policy-grid,
+  .admin-facility-grid,
+  .admin-facility-form {
     grid-template-columns: 1fr;
+  }
+  .admin-form-field-wide,
+  .admin-facility-form > .notice {
+    grid-column: auto;
+  }
+  .admin-section-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
   .admin-community-card {
     padding: 22px;
@@ -2429,6 +2574,18 @@ details {
   border-color: #29443b;
 }
 :root[data-theme="dark"] .admin-community-mark {
+  background: #18342b;
+  color: #c4db91;
+}
+:root[data-theme="dark"] .admin-facility-card,
+:root[data-theme="dark"] .admin-form-checks {
+  background: #102721;
+  border-color: #29443b;
+}
+:root[data-theme="dark"] .admin-facility-card.is-inactive {
+  background: #0c211c;
+}
+:root[data-theme="dark"] .admin-facility-icon {
   background: #18342b;
   color: #c4db91;
 }

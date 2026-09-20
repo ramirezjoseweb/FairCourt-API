@@ -128,6 +128,53 @@ test("admin: separate OTP, community selector and private context", async ({
     page.getByRole("heading", { name: "Auditoría administrativa privada" }),
   ).toBeVisible();
   await expect(page.getByText("ADMIN_COMMUNITY_SELECTED")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Instalaciones", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".admin-facility-card")).toHaveCount(3);
+
+  await page.getByRole("button", { name: "Nueva instalación" }).click();
+  const createDialog = page.getByRole("dialog", { name: "Nueva instalación" });
+  await createDialog.getByLabel("Nombre visible").fill("Piscina");
+  await expect(createDialog.getByLabel("Código interno")).toHaveValue("piscina");
+  await createDialog.getByLabel("Categoría").fill("Bienestar");
+  await createDialog.getByLabel("Hora de apertura").fill("8");
+  await createDialog.getByLabel("Hora de cierre").fill("23");
+  await createDialog.getByLabel("Duración de cada reserva").selectOption("90");
+  await createDialog.getByLabel("Descripción").fill("Piscina comunitaria");
+  await createDialog.getByRole("button", { name: "Crear instalación" }).click();
+
+  const piscina = page.getByRole("article", { name: "Piscina" });
+  await expect(piscina).toBeVisible();
+  await expect(page.locator(".admin-facility-card")).toHaveCount(4);
+  expect(
+    state.requests.find(
+      (row) =>
+        row.path === "/admin/communities/1/facilities" &&
+        row.method === "POST",
+    )?.body,
+  ).toMatchObject({
+    slug: "piscina",
+    name: "Piscina",
+    category: "Bienestar",
+    opening_hour: 8,
+    closing_hour: 23,
+    slot_duration_minutes: 90,
+    is_active: true,
+  });
+
+  await piscina.getByRole("button", { name: "Editar" }).click();
+  const editDialog = page.getByRole("dialog", { name: "Editar Piscina" });
+  await editDialog.getByLabel("Instalación activa").uncheck();
+  await editDialog.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(piscina.getByText("Inactiva", { exact: true })).toBeVisible();
+  expect(
+    state.requests.find(
+      (row) =>
+        row.path.endsWith("/facilities/4") && row.method === "PUT",
+    )?.body,
+  ).toMatchObject({ slug: "piscina", is_active: false });
+  await expect(page.getByText("ADMIN_FACILITY_UPDATED")).toBeVisible();
   expect(
     state.requests.find((row) => row.path.endsWith("/select"))?.authorization,
   ).toBe("Bearer admin-verified-token");
