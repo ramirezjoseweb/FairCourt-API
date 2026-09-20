@@ -2367,6 +2367,9 @@ details {
 .admin-policy-grid span {
   color: var(--muted);
 }
+.admin-policy-explanation {
+  margin: -8px 0 16px;
+}
 .admin-section-heading {
   align-items: flex-start;
   margin-bottom: 22px;

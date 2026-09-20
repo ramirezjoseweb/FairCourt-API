@@ -45,6 +45,26 @@ def count_active_reservations_this_week(db: Session, household_id: int, facility
         .count()
     )
 
+
+def count_active_reservations_on_day(
+    db: Session,
+    household_id: int,
+    facility_id: int,
+    start_at,
+) -> int:
+    """Cuenta las reservas activas de una vivienda para esa instalación y día."""
+    day_start = start_at.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(days=1)
+    return (
+        db.query(Reservation)
+        .filter(Reservation.household_id == household_id)
+        .filter(Reservation.facility_id == facility_id)
+        .filter(Reservation.status == ReservationStatus.ACTIVE.value)
+        .filter(Reservation.start_at >= day_start)
+        .filter(Reservation.start_at < day_end)
+        .count()
+    )
+
 def slot_is_free(db: Session, facility_id: int, start_at) -> bool:
     """Comprueba si una instalación está libre en la franja indicada."""
     existing = (
@@ -160,6 +180,27 @@ def try_promote_waitlist_for_slot(db: Session, facility_id: int, start_at):
             db.commit() 
             continue
  
+        daily_count = count_active_reservations_on_day(
+            db,
+            household.id,
+            facility_id,
+            start_at,
+        )
+        if daily_count >= policy.max_active_reservations_per_day:
+            entry.status = "DROPPED"
+            log_event(
+                db,
+                event="WAITLIST_DROPPED",
+                household_id=entry.household_id,
+                metadata={
+                    "waitlist_entry_id": entry.id,
+                    "start_at": entry.start_at.isoformat(),
+                    "reason": "HOUSEHOLD_DAILY_LIMIT",
+                },
+            )
+            db.commit()
+            continue
+
         weekly_count = count_active_reservations_this_week(db, household.id, facility_id, start_at)
         if weekly_count >= policy.max_active_reservations_per_week:
             entry.status = "DROPPED" # La marcamos como eliminada
@@ -285,6 +326,16 @@ def can_household_book_slot(db: Session, household, facility_id: int, start_at, 
         print("RETURN -> SLOT_OCCUPIED")
         return False, "SLOT_OCCUPIED"
 
+    daily_count = count_active_reservations_on_day(
+        db,
+        household.id,
+        facility_id,
+        start_at,
+    )
+    if daily_count >= policy.max_active_reservations_per_day:
+        print("RETURN -> DAILY_LIMIT_REACHED")
+        return False, "DAILY_LIMIT_REACHED"
+
     weekly_count = count_active_reservations_this_week(db, household.id, facility_id, start_at)
     print("weekly_count =", weekly_count)
 
@@ -398,6 +449,15 @@ def can_household_join_waitlist(db: Session, household, facility_id: int, start_
     weekly_waitlist_count = count_active_waitlist_for_household(db, household.id, facility_id, start_at)
     if weekly_waitlist_count >= policy.max_active_waitlists_per_week:
         return False, "WAITLIST_WEEKLY_LIMIT_REACHED"
+
+    daily_count = count_active_reservations_on_day(
+        db,
+        household.id,
+        facility_id,
+        start_at,
+    )
+    if daily_count >= policy.max_active_reservations_per_day:
+        return False, "DAILY_LIMIT_REACHED"
 
     weekly_count = count_active_reservations_this_week(db, household.id, facility_id, start_at)
     if weekly_count >= policy.max_active_reservations_per_week:

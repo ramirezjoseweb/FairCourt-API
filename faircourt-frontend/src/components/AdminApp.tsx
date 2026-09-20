@@ -8,6 +8,7 @@ import {
   getAdminMe,
   requestAdminOtp,
   selectAdminCommunity,
+  updateAdminBasicPolicy,
   updateAdminFacility,
   verifyAdminOtp,
 } from "../api/admin";
@@ -15,6 +16,7 @@ import type {
   AdminAuditEntry,
   AdminFacility,
   AdminFacilityInput,
+  BasicPolicyInput,
   CommunityPolicy,
   CommunitySummary,
 } from "../api/admin";
@@ -335,21 +337,24 @@ function CommunityWorkspace({
   const action = useAction();
   const [facilities, setFacilities] = useState(initialFacilities);
   const [auditItems, setAuditItems] = useState(audit);
+  const [policyValue, setPolicyValue] = useState(policy);
+  const [policyFormOpen, setPolicyFormOpen] = useState(false);
   const [facilityForm, setFacilityForm] = useState<AdminFacility | "new" | null>(
     null,
   );
-  const policyItems = policy
+  const policyItems = policyValue
     ? [
-        ["Ventana de reserva", `${policy.booking_window_days} días`],
-        ["Reservas semanales", String(policy.max_active_reservations_per_week)],
-        ["Cancelación", `${policy.cancellation_limit_hours} h antes`],
-        ["Check-in", `${policy.checkin_window_minutes} min`],
-        ["Strikes máximos", String(policy.max_strikes)],
-        ["Suspensión", `${policy.suspension_days} días`],
-        ["Listas de espera", String(policy.max_active_waitlists_per_week)],
-        ["Horas punta", `${policy.prime_time_start_hour}:00–${policy.prime_time_end_hour}:00`],
-        ["Cooldown", `${policy.cooldown_days} días`],
-        ["Votaciones", policy.unlock_voting_enabled ? "Activadas" : "Desactivadas"],
+        ["Ventana de reserva", `${policyValue.booking_window_days} días`],
+        ["Reservas diarias por instalación", String(policyValue.max_active_reservations_per_day)],
+        ["Reservas semanales por instalación", String(policyValue.max_active_reservations_per_week)],
+        ["Cancelación", `${policyValue.cancellation_limit_hours} h antes`],
+        ["Check-in", `${policyValue.checkin_window_minutes} min`],
+        ["Strikes máximos", String(policyValue.max_strikes)],
+        ["Suspensión", `${policyValue.suspension_days} días`],
+        ["Listas de espera", String(policyValue.max_active_waitlists_per_week)],
+        ["Horas punta", `${policyValue.prime_time_start_hour}:00–${policyValue.prime_time_end_hour}:00`],
+        ["Cooldown", `${policyValue.cooldown_days} días`],
+        ["Votaciones", policyValue.unlock_voting_enabled ? "Activadas" : "Desactivadas"],
       ]
     : [];
 
@@ -374,6 +379,15 @@ function CommunityWorkspace({
         : "La instalación se ha creado.",
     );
     if (success) setFacilityForm(null);
+  }
+
+  async function saveBasicPolicy(payload: BasicPolicyInput) {
+    const success = await action.run(async () => {
+      const saved = await updateAdminBasicPolicy(community.id, payload);
+      setPolicyValue(saved);
+      setAuditItems(await getAdminCommunityAudit(community.id));
+    }, "Las reglas básicas se han actualizado.");
+    if (success) setPolicyFormOpen(false);
   }
 
   return (
@@ -457,11 +471,23 @@ function CommunityWorkspace({
           </div>
         )}
       </section>
-      <section className="panel">
-        <div className="section-heading">
-          <h2>Política efectiva</h2>
-          <Icon name="shield" />
+      <section className="panel" aria-labelledby="admin-policy-title">
+        <div className="section-heading admin-section-heading">
+          <div>
+            <p className="eyebrow">REGLAS DE RESERVA</p>
+            <h2 id="admin-policy-title">Política efectiva</h2>
+          </div>
+          <Button
+            variant="secondary"
+            disabled={action.busy || !policyValue}
+            onClick={() => setPolicyFormOpen(true)}
+          >
+            Editar reglas básicas
+          </Button>
         </div>
+        <p className="muted small admin-policy-explanation">
+          Los límites diario y semanal se aplican a cada vivienda por separado en cada instalación.
+        </p>
         <div className="admin-policy-grid">
           {policyItems.map(([label, value]) => (
             <div key={label}>
@@ -503,7 +529,120 @@ function CommunityWorkspace({
           onSave={saveFacility}
         />
       )}
+      {policyFormOpen && policyValue && (
+        <BasicPolicyFormDialog
+          policy={policyValue}
+          busy={action.busy}
+          error={action.error}
+          onClose={() => setPolicyFormOpen(false)}
+          onSave={saveBasicPolicy}
+        />
+      )}
     </section>
+  );
+}
+
+function BasicPolicyFormDialog({
+  policy,
+  busy,
+  error,
+  onClose,
+  onSave,
+}: {
+  policy: CommunityPolicy;
+  busy: boolean;
+  error?: string;
+  onClose: () => void;
+  onSave: (payload: BasicPolicyInput) => Promise<void>;
+}) {
+  const [form, setForm] = useState<BasicPolicyInput>({
+    booking_window_days: policy.booking_window_days,
+    max_active_reservations_per_day: policy.max_active_reservations_per_day,
+    max_active_reservations_per_week: policy.max_active_reservations_per_week,
+    cancellation_limit_hours: policy.cancellation_limit_hours,
+  });
+
+  function setField<K extends keyof BasicPolicyInput>(
+    field: K,
+    value: BasicPolicyInput[K],
+  ) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  return (
+    <Dialog title="Editar reglas básicas" onClose={onClose}>
+      <form
+        className="admin-facility-form admin-policy-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onSave(form);
+        }}
+      >
+        <label className="admin-form-field">
+          <span>Días de antelación</span>
+          <input
+            type="number"
+            min="0"
+            max="365"
+            value={form.booking_window_days}
+            required
+            autoFocus
+            onChange={(event) => setField("booking_window_days", Number(event.target.value))}
+          />
+        </label>
+        <label className="admin-form-field">
+          <span>Reservas diarias por instalación</span>
+          <input
+            type="number"
+            min="0"
+            max="50"
+            value={form.max_active_reservations_per_day}
+            required
+            onChange={(event) =>
+              setField("max_active_reservations_per_day", Number(event.target.value))
+            }
+          />
+        </label>
+        <label className="admin-form-field">
+          <span>Reservas semanales por instalación</span>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={form.max_active_reservations_per_week}
+            required
+            onChange={(event) =>
+              setField("max_active_reservations_per_week", Number(event.target.value))
+            }
+          />
+        </label>
+        <label className="admin-form-field">
+          <span>Horas mínimas para cancelar</span>
+          <input
+            type="number"
+            min="0"
+            max="336"
+            value={form.cancellation_limit_hours}
+            required
+            onChange={(event) =>
+              setField("cancellation_limit_hours", Number(event.target.value))
+            }
+          />
+        </label>
+        <p className="field-hint admin-form-field-wide">
+          Un límite igual a 0 bloquea nuevas reservas en ese periodo. Los cambios se aplican inmediatamente.
+        </p>
+        <Feedback error={error} />
+        <div className="dialog-actions admin-form-field-wide">
+          <Button variant="secondary" disabled={busy} onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Guardando…" : "Guardar reglas"}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

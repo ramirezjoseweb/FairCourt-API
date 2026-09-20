@@ -221,6 +221,38 @@ class CommunityIsolationTests(unittest.TestCase):
         self.assertEqual(raised.exception.status_code, 404)
         self.assertEqual(self.db.query(Reservation).count(), 0)
 
+    def test_daily_reservation_limit_is_enforced_per_community_facility(self) -> None:
+        tomorrow = datetime.now() + timedelta(days=1)
+        first_start = tomorrow.replace(hour=9, minute=0, second=0, microsecond=0)
+        second_start = first_start.replace(hour=10)
+        self.community_b.policy.booking_window_days = 7
+        self.community_b.policy.max_active_reservations_per_day = 1
+        self.community_b.policy.max_active_reservations_per_week = 4
+        self.db.add(
+            Reservation(
+                community_id=self.community_b.id,
+                household_id=self.household_b.id,
+                facility_id=self.facility_b.id,
+                start_at=first_start,
+                end_at=first_start + timedelta(hours=1),
+                status="ACTIVE",
+            )
+        )
+        self.db.commit()
+
+        with self.assertRaises(HTTPException) as raised:
+            create_reservation(
+                payload=CreateReservationIn(
+                    facility_id=self.facility_b.id,
+                    start_at=second_start,
+                ),
+                db=self.db,
+                current_user=self.user_b,
+            )
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertIn("ese día", raised.exception.detail)
+        self.assertEqual(self.db.query(Reservation).count(), 1)
+
     def test_notification_from_other_community_is_not_addressable(self) -> None:
         notification = Notification(
             community_id=self.community_b.id,

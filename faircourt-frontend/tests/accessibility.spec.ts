@@ -140,6 +140,12 @@ for (const theme of ["light", "dark"] as const) {
       ).toBeVisible();
       await check("Formulario administrativo de instalaciones");
       await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Editar reglas básicas" }).click();
+      await expect(
+        page.getByRole("dialog", { name: "Editar reglas básicas" }),
+      ).toBeVisible();
+      await check("Formulario administrativo de reglas básicas");
+      await page.keyboard.press("Escape");
     });
   }
 }

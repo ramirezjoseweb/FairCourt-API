@@ -27,14 +27,17 @@ from app.routers.admin import (
     create_admin_facility,
     list_admin_communities,
     list_admin_facilities,
+    read_admin_community_policy,
     read_private_admin_audit,
     request_admin_otp,
     select_admin_community,
     update_admin_facility,
+    update_admin_basic_policy,
     verify_admin_otp,
 )
 from app.routers.audit import get_my_audit_logs
 from app.schemas import (
+    AdminBasicPolicyUpdateIn,
     AdminFacilityWriteIn,
     AdminRequestOTPIn,
     AdminVerifyOTPIn,
@@ -278,6 +281,44 @@ class AdminAccessTests(unittest.TestCase):
         self.assertEqual(
             events,
             ["ADMIN_FACILITY_UPDATED", "ADMIN_FACILITY_CREATED"],
+        )
+        self.assertEqual(get_my_audit_logs(db=self.db, current_user=self.resident), [])
+
+    def test_admin_updates_basic_policy_only_for_target_community(self) -> None:
+        updated = update_admin_basic_policy(
+            community_id=self.community_b.id,
+            payload=AdminBasicPolicyUpdateIn(
+                booking_window_days=14,
+                max_active_reservations_per_day=2,
+                max_active_reservations_per_week=4,
+                cancellation_limit_hours=12,
+            ),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(updated.booking_window_days, 14)
+        self.assertEqual(updated.max_active_reservations_per_day, 2)
+        self.assertEqual(updated.max_active_reservations_per_week, 4)
+        self.assertEqual(updated.cancellation_limit_hours, 12)
+
+        untouched = read_admin_community_policy(
+            community_id=self.community_a.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(untouched.booking_window_days, 7)
+        self.assertEqual(untouched.max_active_reservations_per_day, 1)
+        self.assertEqual(untouched.max_active_reservations_per_week, 2)
+        self.assertEqual(untouched.cancellation_limit_hours, 4)
+
+        private_entries = read_private_admin_audit(
+            community_id=self.community_b.id,
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(
+            [entry.event for entry in private_entries],
+            ["ADMIN_BASIC_POLICY_UPDATED"],
         )
         self.assertEqual(get_my_audit_logs(db=self.db, current_user=self.resident), [])
 

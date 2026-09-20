@@ -23,6 +23,7 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 - Roles separados de administrador de plataforma y residente
 - Selector administrativo de comunidad con auditoría privada
 - Alta, edición y desactivación de instalaciones desde el panel administrativo
+- Configuración administrativa de ventana, límites diarios y semanales y cancelación
 - Gestión multipista y de espacios comunitarios
 - Catálogo priorizado con Pádel y Tenis en primer lugar
 - Reserva y cancelación de franjas horarias
@@ -139,6 +140,11 @@ Dentro de ese contexto se puede crear y editar el catálogo de instalaciones,
 incluidos su horario general, duración de reserva, prioridad y estados. Las
 instalaciones se desactivan en lugar de eliminarse para conservar el historial;
 los cambios quedan registrados en la auditoría privada.
+
+La sección de política permite editar las reglas básicas de la comunidad:
+ventana de reserva, límite diario y semanal por vivienda e instalación, y
+antelación mínima para cancelar. Los valores se aplican inmediatamente al motor
+de disponibilidad, reservas y promociones de lista de espera.
 
 ## Datos de demostración
 Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1", dentro del portal `faircourt`.

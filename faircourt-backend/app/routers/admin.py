@@ -19,6 +19,7 @@ from app.models import (
     UserRole,
 )
 from app.schemas import (
+    AdminBasicPolicyUpdateIn,
     AdminFacilityOut,
     AdminFacilityWriteIn,
     AdminMeOut,
@@ -346,6 +347,38 @@ def read_admin_community_policy(
 ):
     _community_or_404(db, community_id)
     return get_community_policy(db, community_id)
+
+
+@router.put(
+    "/communities/{community_id}/policy/basic",
+    response_model=CommunityPolicyOut,
+)
+def update_admin_basic_policy(
+    community_id: int,
+    payload: AdminBasicPolicyUpdateIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    _community_or_404(db, community_id)
+    policy = get_community_policy(db, community_id)
+    changes = {}
+    for field, value in payload.model_dump().items():
+        previous = getattr(policy, field)
+        if previous != value:
+            changes[field] = {"from": previous, "to": value}
+            setattr(policy, field, value)
+
+    if changes:
+        log_admin_event(
+            db,
+            event="ADMIN_BASIC_POLICY_UPDATED",
+            admin_user_id=admin.id,
+            community_id=community_id,
+            metadata={"changes": changes},
+        )
+        db.commit()
+        db.refresh(policy)
+    return policy
 
 
 @router.get(

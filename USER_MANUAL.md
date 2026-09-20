@@ -49,6 +49,12 @@ duración de las reservas. También puede indicar si está activo y si admite
 reservas. Una instalación con historial se desactiva; no se elimina. El código
 interno solo tiene que ser único dentro de la comunidad seleccionada.
 
+En **Política efectiva**, la acción **Editar reglas básicas** permite configurar
+los días de antelación, las reservas diarias y semanales por vivienda e
+instalación y las horas mínimas para cancelar. Un límite igual a cero bloquea
+nuevas reservas en ese periodo. Los cambios se aplican inmediatamente y quedan
+registrados en la auditoría administrativa privada.
+
 ## Apariencia clara y oscura
 FairCourt utiliza inicialmente el tema claro u oscuro configurado en el
 dispositivo. El botón con forma de luna o sol permite cambiarlo tanto en la

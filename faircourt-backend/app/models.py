@@ -100,6 +100,10 @@ class CommunityPolicy(Base):
             name="ck_policy_reservation_limit",
         ),
         CheckConstraint(
+            "max_active_reservations_per_day >= 0",
+            name="ck_policy_daily_reservation_limit",
+        ),
+        CheckConstraint(
             "cancellation_limit_hours >= 0",
             name="ck_policy_cancellation_limit",
         ),
@@ -145,6 +149,7 @@ class CommunityPolicy(Base):
         nullable=False,
     )
     booking_window_days = Column(Integer, default=7, nullable=False)
+    max_active_reservations_per_day = Column(Integer, default=1, nullable=False)
     max_active_reservations_per_week = Column(Integer, default=2, nullable=False)
     cancellation_limit_hours = Column(Integer, default=4, nullable=False)
     checkin_window_minutes = Column(Integer, default=15, nullable=False)

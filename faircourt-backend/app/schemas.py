@@ -125,6 +125,7 @@ class AdminFacilityOut(FacilityOut):
 class CommunityPolicyOut(BaseModel):
     community_id: int
     booking_window_days: int
+    max_active_reservations_per_day: int
     max_active_reservations_per_week: int
     cancellation_limit_hours: int
     checkin_window_minutes: int
@@ -140,6 +141,13 @@ class CommunityPolicyOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminBasicPolicyUpdateIn(BaseModel):
+    booking_window_days: int = Field(ge=0, le=365)
+    max_active_reservations_per_day: int = Field(ge=0, le=50)
+    max_active_reservations_per_week: int = Field(ge=0, le=100)
+    cancellation_limit_hours: int = Field(ge=0, le=336)
 
 # Clase de la petición de reserva 
 class CreateReservationIn(BaseModel): 

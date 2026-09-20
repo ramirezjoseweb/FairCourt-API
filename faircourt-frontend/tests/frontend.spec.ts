@@ -175,6 +175,35 @@ test("admin: separate OTP, community selector and private context", async ({
     )?.body,
   ).toMatchObject({ slug: "piscina", is_active: false });
   await expect(page.getByText("ADMIN_FACILITY_UPDATED")).toBeVisible();
+
+  const policyRegion = page.getByRole("region", { name: "Política efectiva" });
+  await expect(
+    policyRegion.getByText("Reservas diarias por instalación"),
+  ).toBeVisible();
+  await policyRegion.getByRole("button", { name: "Editar reglas básicas" }).click();
+  const policyDialog = page.getByRole("dialog", { name: "Editar reglas básicas" });
+  await policyDialog.getByLabel("Días de antelación").fill("14");
+  await policyDialog.getByLabel("Reservas diarias por instalación").fill("2");
+  await policyDialog.getByLabel("Reservas semanales por instalación").fill("4");
+  await policyDialog.getByLabel("Horas mínimas para cancelar").fill("12");
+  await policyDialog.getByRole("button", { name: "Guardar reglas" }).click();
+  await expect(
+    policyRegion
+      .getByText("Reservas diarias por instalación")
+      .locator("..")
+      .getByText("2", { exact: true }),
+  ).toBeVisible();
+  expect(
+    state.requests.find(
+      (row) => row.path.endsWith("/policy/basic") && row.method === "PUT",
+    )?.body,
+  ).toEqual({
+    booking_window_days: 14,
+    max_active_reservations_per_day: 2,
+    max_active_reservations_per_week: 4,
+    cancellation_limit_hours: 12,
+  });
+  await expect(page.getByText("ADMIN_BASIC_POLICY_UPDATED")).toBeVisible();
   expect(
     state.requests.find((row) => row.path.endsWith("/select"))?.authorization,
   ).toBe("Bearer admin-verified-token");

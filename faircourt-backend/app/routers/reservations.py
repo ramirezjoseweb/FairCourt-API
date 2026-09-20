@@ -18,6 +18,7 @@ from app.security import utcnow, create_access_token, decode_checkin_token, crea
 from app.services.rules import (
     # importamos las reglas de la reserva 
     is_within_booking_window, 
+    count_active_reservations_on_day,
     count_active_reservations_this_week, 
     slot_is_free, 
     can_cancel_reservation,
@@ -120,6 +121,22 @@ def create_reservation(
             detail="La reserva debe empezar en una franja exacta (ej: 18:00, 19:00...)"
         )"""
     
+    daily_count = count_active_reservations_on_day(
+        db,
+        household.id,
+        facility.id,
+        start_at,
+    )
+    if daily_count >= policy.max_active_reservations_per_day:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"La vivienda ya tiene el máximo de "
+                f"{policy.max_active_reservations_per_day} reservas activas "
+                "para esta instalación ese día."
+            ),
+        )
+
     # Comprueba si la vivienda tiene el máximo de reservas activas esta semana 
     weekly_count = count_active_reservations_this_week(db, household.id, facility.id, start_at)
     if weekly_count >= policy.max_active_reservations_per_week:
@@ -471,6 +488,34 @@ def join_waitlist(
         raise HTTPException(
             status_code = 409, 
             detail="Ya tienes el máximo de waitlists activas permitidas"
+        )
+
+    if (
+        count_active_reservations_on_day(
+            db,
+            household.id,
+            facility.id,
+            start_at,
+        )
+        >= policy.max_active_reservations_per_day
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Ya tienes el máximo de reservas permitidas para ese día",
+        )
+
+    if (
+        count_active_reservations_this_week(
+            db,
+            household.id,
+            facility.id,
+            start_at,
+        )
+        >= policy.max_active_reservations_per_week
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Ya tienes el máximo de reservas activas permitidas esta semana",
         )
 
     """ if household_is_on_cooldown(db, household.id, start_at, now): 

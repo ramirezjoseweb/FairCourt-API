@@ -25,6 +25,7 @@ export type CommunitySummary = {
 export type CommunityPolicy = {
   community_id: number;
   booking_window_days: number;
+  max_active_reservations_per_day: number;
   max_active_reservations_per_week: number;
   cancellation_limit_hours: number;
   checkin_window_minutes: number;
@@ -38,6 +39,14 @@ export type CommunityPolicy = {
   unlock_voting_hours: number;
   unlock_min_yes_votes: number;
 };
+
+export type BasicPolicyInput = Pick<
+  CommunityPolicy,
+  | "booking_window_days"
+  | "max_active_reservations_per_day"
+  | "max_active_reservations_per_week"
+  | "cancellation_limit_hours"
+>;
 
 export type AdminFacility = {
   id: number;
@@ -102,6 +111,16 @@ export function selectAdminCommunity(communityId: number) {
 export function getAdminCommunityPolicy(communityId: number) {
   return adminApiRequest<CommunityPolicy>(
     `/admin/communities/${communityId}/policy`,
+  );
+}
+
+export function updateAdminBasicPolicy(
+  communityId: number,
+  policy: BasicPolicyInput,
+) {
+  return adminApiRequest<CommunityPolicy>(
+    `/admin/communities/${communityId}/policy/basic`,
+    { method: "PUT", body: JSON.stringify(policy) },
   );
 }
 

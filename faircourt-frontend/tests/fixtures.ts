@@ -4,7 +4,11 @@ import type { MeResponse } from "../src/api/me";
 import type { Slot, Reservation } from "../src/api/reservations";
 import type { Facility } from "../src/api/facilities";
 import type { UnlockProposal } from "../src/api/unlock";
-import type { AdminAuditEntry, AdminFacility } from "../src/api/admin";
+import type {
+  AdminAuditEntry,
+  AdminFacility,
+  CommunityPolicy,
+} from "../src/api/admin";
 
 export const day = "2026-09-07";
 export const stamp = (hour: number, date = day) =>
@@ -296,6 +300,48 @@ export async function setup(
       ],
       [2, []],
     ]),
+    adminPolicies: new Map<number, CommunityPolicy>([
+      [
+        1,
+        {
+          community_id: 1,
+          booking_window_days: 7,
+          max_active_reservations_per_day: 1,
+          max_active_reservations_per_week: 2,
+          cancellation_limit_hours: 4,
+          checkin_window_minutes: 15,
+          max_strikes: 2,
+          suspension_days: 14,
+          max_active_waitlists_per_week: 3,
+          prime_time_start_hour: 18,
+          prime_time_end_hour: 21,
+          cooldown_days: 3,
+          unlock_voting_enabled: true,
+          unlock_voting_hours: 48,
+          unlock_min_yes_votes: 2,
+        },
+      ],
+      [
+        2,
+        {
+          community_id: 2,
+          booking_window_days: 2,
+          max_active_reservations_per_day: 1,
+          max_active_reservations_per_week: 2,
+          cancellation_limit_hours: 24,
+          checkin_window_minutes: 15,
+          max_strikes: 2,
+          suspension_days: 14,
+          max_active_waitlists_per_week: 3,
+          prime_time_start_hour: 18,
+          prime_time_end_hour: 21,
+          cooldown_days: 3,
+          unlock_voting_enabled: false,
+          unlock_voting_hours: 48,
+          unlock_min_yes_votes: 2,
+        },
+      ],
+    ]),
   };
   if (options.authenticated !== false)
     await page.addInitScript(() => {
@@ -404,23 +450,24 @@ export async function setup(
       });
       data = updated;
     }
+    else if (path.match(/^\/admin\/communities\/\d+\/policy\/basic$/)) {
+      const communityId = Number(path.split("/")[3]);
+      const current = state.adminPolicies.get(communityId)!;
+      const updated = { ...current, ...request.postDataJSON() };
+      state.adminPolicies.set(communityId, updated);
+      state.adminAudit.get(communityId)?.unshift({
+        id: 43,
+        event: "ADMIN_BASIC_POLICY_UPDATED",
+        user_id: 90,
+        household_id: null,
+        reservation_id: null,
+        metadata_json: JSON.stringify({ changes: request.postDataJSON() }),
+        created_at: stamp(11),
+      });
+      data = updated;
+    }
     else if (path.match(/^\/admin\/communities\/\d+\/policy$/))
-      data = {
-        community_id: Number(path.split("/")[3]),
-        booking_window_days: 7,
-        max_active_reservations_per_week: 2,
-        cancellation_limit_hours: 4,
-        checkin_window_minutes: 15,
-        max_strikes: 2,
-        suspension_days: 14,
-        max_active_waitlists_per_week: 3,
-        prime_time_start_hour: 18,
-        prime_time_end_hour: 21,
-        cooldown_days: 3,
-        unlock_voting_enabled: true,
-        unlock_voting_hours: 48,
-        unlock_min_yes_votes: 2,
-      };
+      data = state.adminPolicies.get(Number(path.split("/")[3]));
     else if (path.match(/^\/admin\/communities\/\d+\/audit$/))
       data = state.adminAudit.get(Number(path.split("/")[3])) ?? [];
     else if (path === "/auth/request-otp")
