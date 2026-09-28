@@ -17,6 +17,10 @@ necesidad observada durante el piloto.
 
 ## Estado
 
-- Punto 1: implementación completada y validada. Falta configurar las
-  credenciales del proveedor SMTP en el entorno publicado y hacer un envío real.
-- Puntos 2–5: pendientes; no se adelantan hasta completar el punto anterior.
+- Punto 1: implementación y envío SMTP real validados en local.
+- Punto 2: [Parque Venecia](parque-venecia-pilot.md) está configurada localmente
+  con una pista, reglas provisionales y ocho viviendas controladas. Falta
+  sustituir esos datos por los horarios, normas, viviendas y correos confirmados
+  por la comunidad.
+- Puntos 3–5: pendientes; no se adelantan hasta validar los datos reales del
+  punto 2.

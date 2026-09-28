@@ -9,6 +9,7 @@ __pycache__/
 # Variables de entorno
 .env
 *.local.db
+*.local.csv
 
 # VSCode
 .vscode/
