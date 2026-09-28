@@ -18,8 +18,10 @@ vivienda con un correo electrónico, dicho correo tiene que ser siempre el mismo
 posteriormente para que el sistema te permita iniciar sesión con el código de 
 vivienda asociado. 
 1. Introduce código de vivienda + correo electrónico. 
-2. Solicita el código OTP.  
-3. Introduce el código OTP generado por el sistema. 
+2. Solicita el código OTP. En el entorno publicado se recibe por correo; en
+   desarrollo se muestra únicamente en la terminal de Uvicorn.
+3. Introduce el código OTP generado por el sistema. Caduca y solo puede
+   utilizarse una vez. Las solicitudes repetidas se limitan temporalmente.
 4. Acceder a la página de inicio FairCourt. 
 No se podrá acceder si el código de vivienda no existe o si el correo introducido es diferente al asociado previamente a la vivienda.
 El mismo código de vivienda puede existir en dos comunidades distintas sin
@@ -32,7 +34,8 @@ adicionales con las que multiplicar turnos.
 
 ## Acceso del administrador de plataforma
 
-El administrador accede desde `/admin` con su correo administrativo y un OTP.
+El administrador accede desde `/admin` con su correo administrativo y un OTP
+enviado por el mismo canal seguro que el de residentes.
 Esta cuenta no está vinculada a una vivienda y no puede reservar instalaciones.
 Después del acceso se muestra un selector con todas las comunidades. Al elegir
 una, la cabecera indica permanentemente **Administrando: nombre de comunidad**

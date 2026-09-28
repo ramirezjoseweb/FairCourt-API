@@ -8,6 +8,7 @@ __pycache__/
 
 # Variables de entorno
 .env
+*.local.db
 
 # VSCode
 .vscode/

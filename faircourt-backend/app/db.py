@@ -14,9 +14,11 @@ lo cual encaja con la arquitectura offline-first del sistema.
 """
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = "sqlite:///./faircourt.db"
+from app.config import settings
+
+DATABASE_URL = settings.DATABASE_URL
 """
 URL de conexión a la base de datos SQLite.
 
@@ -25,10 +27,11 @@ permitiendo persistencia en entorno offline sin necesidad de un
 servidor externo de base de datos.
 """
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},  # necesario en SQLite con FastAPI
-)
+engine_options = {}
+if DATABASE_URL.startswith("sqlite"):
+    engine_options["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(DATABASE_URL, **engine_options)
 """
 Instancia del motor de SQLAlchemy.
 

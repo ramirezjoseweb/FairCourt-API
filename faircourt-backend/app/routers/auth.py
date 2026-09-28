@@ -20,6 +20,12 @@ from app.models import (
 from app.schemas import RequestOTPIn, VerifyOTPIn, TokenOut, MessageOut  # Esquemas Pydantic para validar entradas/salidas
 from app.security import gen_otp, hash_secret, verify_secret, utcnow, create_access_token  # Utilidades de seguridad
 from app.config import settings  # Configuración centralizada de la aplicación
+from app.services.otp_delivery import (
+    OtpDeliveryError,
+    deliver_otp,
+    otp_delivery_message,
+    otp_resend_is_blocked,
+)
 
 # Router de FastAPI para agrupar endpoints de autenticación
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -101,6 +107,15 @@ def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)  # Recarga el objeto para obtener el ID generado por la BD
 
+    if otp_resend_is_blocked(db, user.email, "RESIDENT", community.id):
+        raise HTTPException(
+            status_code=429,
+            detail="Espera antes de solicitar otro código.",
+            headers={
+                "Retry-After": str(settings.OTP_RESEND_COOLDOWN_SECONDS),
+            },
+        )
+
     # 3) Generar OTP y guardarlo en base de datos de forma segura
     # Se genera el código OTP (por ejemplo 6 dígitos)
     otp = gen_otp(settings.OTP_LENGTH)
@@ -132,16 +147,24 @@ def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
     db.add(record)
     db.commit()
 
-    # 4) Modo desarrollo:
-    # El OTP se imprime en consola para poder probar el sistema
-    # En producción se enviaría por email, SMS o Telegram.
-    if settings.DEV_PRINT_OTP:
-        print(f"[DEV OTP] Email={user.email} OTP={otp} (expira {expires_at.isoformat()})")
+    try:
+        deliver_otp(user.email, otp, expires_at, "RESIDENT")
+    except OtpDeliveryError as error:
+        record.used_at = utcnow()
+        log_event(
+            db,
+            event="OTP_DELIVERY_FAILED",
+            household_id=household.id,
+            user_id=user.id,
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=503,
+            detail="No se ha podido enviar el código. Inténtalo de nuevo.",
+        ) from error
 
     # Respuesta del endpoint
-    return {
-        "message": "OTP generado. Revisa tu email (modo dev: mira la consola del servidor)."
-    }
+    return {"message": otp_delivery_message()}
 
     
 

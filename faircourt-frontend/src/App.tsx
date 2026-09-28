@@ -184,12 +184,9 @@ function ResidentApp({
                   required
                   autoFocus
                 />
-                {import.meta.env.DEV && (
-                  <p className="field-hint">
-                    Entorno de desarrollo: consulta el OTP en la terminal de
-                    Uvicorn.
-                  </p>
-                )}
+                <p className="field-hint">
+                  Revisa el correo indicado, incluida la carpeta de spam.
+                </p>
               </>
             )}
             <Feedback error={action.error} />

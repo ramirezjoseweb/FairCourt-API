@@ -57,6 +57,7 @@ from app.schemas import (
 )
 from app.security import create_access_token
 from app.security import hash_secret
+from app.services.otp_delivery import OtpDeliveryError
 
 
 class AdminAccessTests(unittest.TestCase):
@@ -191,6 +192,37 @@ class AdminAccessTests(unittest.TestCase):
         )
         self.assertIn("Si el correo", response["message"])
         self.assertEqual(self.db.query(AuditLog).count(), 0)
+
+    def test_failed_admin_otp_delivery_is_neutral_and_invalidates_the_code(self) -> None:
+        with patch(
+            "app.routers.admin.deliver_otp",
+            side_effect=OtpDeliveryError("provider down"),
+        ):
+            response = request_admin_otp(
+                payload=AdminRequestOTPIn(email=self.admin.email),
+                db=self.db,
+            )
+        self.assertIn("Si el correo", response["message"])
+        otp = self.db.query(AuthOTP).one()
+        self.assertIsNotNone(otp.used_at)
+        events = [row.event for row in self.db.query(AuditLog).all()]
+        self.assertEqual(
+            events,
+            ["ADMIN_OTP_REQUESTED", "ADMIN_OTP_DELIVERY_FAILED"],
+        )
+
+    def test_admin_otp_resend_is_silently_rate_limited(self) -> None:
+        previous_dev_setting = settings.DEV_PRINT_OTP
+        settings.DEV_PRINT_OTP = False
+        try:
+            payload = AdminRequestOTPIn(email=self.admin.email)
+            first = request_admin_otp(payload=payload, db=self.db)
+            second = request_admin_otp(payload=payload, db=self.db)
+        finally:
+            settings.DEV_PRINT_OTP = previous_dev_setting
+        self.assertEqual(first, second)
+        self.assertEqual(self.db.query(AuthOTP).count(), 1)
+        self.assertEqual(self.db.query(AuditLog).count(), 1)
 
     def test_community_selection_is_explicit_and_privately_audited(self) -> None:
         communities = list_admin_communities(db=self.db, _admin=self.admin)

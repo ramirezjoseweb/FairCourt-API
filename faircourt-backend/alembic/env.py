@@ -19,6 +19,10 @@ from alembic import context
 # Proporciona acceso a los valores definidos en el archivo alembic.ini.
 config = context.config
 
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
+
 # Interpreta el archivo de configuración para el sistema de logging.
 # Esta línea configura los loggers definidos en el .ini.
 if config.config_file_name is not None:

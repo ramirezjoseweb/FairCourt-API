@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from fastapi import HTTPException
 from sqlalchemy import create_engine
@@ -24,6 +25,7 @@ from app.models import (
     User,
 )
 from app.routers.auth import request_otp
+from app.services.otp_delivery import OtpDeliveryError
 from app.routers.facilities import list_facilities
 from app.routers.community import read_community_policy
 from app.routers.notifications import mark_notification_as_read
@@ -222,6 +224,47 @@ class CommunityIsolationTests(unittest.TestCase):
         )
         self.assertNotIn(self.household_b.code, raised.exception.detail)
         self.assertEqual(self.db.query(AuthOTP).count(), 0)
+
+    def test_failed_resident_otp_delivery_invalidates_the_generated_code(self) -> None:
+        with patch(
+            "app.routers.auth.deliver_otp",
+            side_effect=OtpDeliveryError("provider down"),
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                request_otp(
+                    payload=RequestOTPIn(
+                        community_slug="community-b",
+                        house_code=self.household_b.code,
+                        email=self.user_b.email,
+                    ),
+                    db=self.db,
+                )
+        self.assertEqual(raised.exception.status_code, 503)
+        otp = self.db.query(AuthOTP).one()
+        self.assertIsNotNone(otp.used_at)
+        events = [row.event for row in self.db.query(AuditLog).all()]
+        self.assertEqual(events, ["OTP_REQUESTED", "OTP_DELIVERY_FAILED"])
+
+    def test_resident_otp_resend_is_rate_limited(self) -> None:
+        previous_dev_setting = settings.DEV_PRINT_OTP
+        settings.DEV_PRINT_OTP = False
+        try:
+            payload = RequestOTPIn(
+                community_slug="community-b",
+                house_code=self.household_b.code,
+                email=self.user_b.email,
+            )
+            request_otp(payload=payload, db=self.db)
+            with self.assertRaises(HTTPException) as raised:
+                request_otp(payload=payload, db=self.db)
+        finally:
+            settings.DEV_PRINT_OTP = previous_dev_setting
+        self.assertEqual(raised.exception.status_code, 429)
+        self.assertEqual(
+            raised.exception.headers["Retry-After"],
+            str(settings.OTP_RESEND_COOLDOWN_SECONDS),
+        )
+        self.assertEqual(self.db.query(AuthOTP).count(), 1)
 
     def test_cross_community_facility_cannot_be_reserved(self) -> None:
         tomorrow_at_nine = (datetime.now() + timedelta(days=1)).replace(

@@ -53,6 +53,11 @@ from app.services.household_import import (
     import_household_csv,
     preview_household_csv,
 )
+from app.services.otp_delivery import (
+    OtpDeliveryError,
+    deliver_otp,
+    otp_resend_is_blocked,
+)
 from app.services.policies import get_community_policy
 
 
@@ -151,6 +156,8 @@ def request_admin_otp(
     message = "Si el correo está autorizado, se ha generado un código de acceso."
     if not admin:
         return {"message": message}
+    if otp_resend_is_blocked(db, email, ADMIN_OTP_PURPOSE, None):
+        return {"message": message}
 
     otp = gen_otp(settings.OTP_LENGTH)
     expires_at = utcnow() + timedelta(minutes=settings.OTP_TTL_MINUTES)
@@ -170,11 +177,25 @@ def request_admin_otp(
     )
     db.commit()
 
-    if settings.DEV_PRINT_OTP:
-        print(
-            f"[DEV ADMIN OTP] Email={email} OTP={otp} "
-            f"(expira {expires_at.isoformat()})"
+    try:
+        deliver_otp(email, otp, expires_at, ADMIN_OTP_PURPOSE)
+    except OtpDeliveryError:
+        otp_row = (
+            db.query(AuthOTP)
+            .filter(AuthOTP.email == email)
+            .filter(AuthOTP.community_id.is_(None))
+            .filter(AuthOTP.purpose == ADMIN_OTP_PURPOSE)
+            .order_by(AuthOTP.created_at.desc())
+            .first()
         )
+        if otp_row:
+            otp_row.used_at = utcnow()
+        log_admin_event(
+            db,
+            event="ADMIN_OTP_DELIVERY_FAILED",
+            admin_user_id=admin.id,
+        )
+        db.commit()
     return {"message": message}
 
 

@@ -17,6 +17,7 @@ en el uso de la pista comunitaria, reduciendo casi un 100% la dependencia de adm
 ## Funcionalidades
 
 - Registro mediante vivienda y código OTP
+- Entrega OTP por SMTP seguro, con consola exclusiva para desarrollo
 - Autenticación JWT
 - Aislamiento multi-comunidad con viviendas e instalaciones propias
 - Reglas de reserva y equidad independientes por comunidad
@@ -83,6 +84,41 @@ npm 11.12.1 o superior
 13. Ir a http://localhost:5173 
 ```
 
+### Entrega del OTP
+
+En desarrollo no hace falta configurar un proveedor: el modo predeterminado
+`console` imprime el OTP en la terminal de Uvicorn. Para preparar un entorno
+publicado, copia `faircourt-backend/.env.example` como
+`faircourt-backend/.env`, configura una clave `SECRET_KEY` propia y cambia:
+
+```dotenv
+OTP_DELIVERY_MODE=smtp
+DEV_PRINT_OTP=false
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USERNAME=usuario-smtp-generado-por-brevo
+SMTP_PASSWORD=clave-smtp-generada-por-brevo
+SMTP_FROM_EMAIL=acceso@faircourt.es
+SMTP_FROM_NAME=FairCourt
+SMTP_STARTTLS=true
+SMTP_USE_SSL=false
+```
+
+`DATABASE_URL` permite seleccionar una base distinta por entorno. En desarrollo
+mantiene `sqlite:///./faircourt.db`; las pruebas manuales que necesiten migrar
+datos deben apuntar a una copia local y no alterar la base versionada.
+
+Las credenciales reales pertenecen solo al archivo `.env`, que está excluido
+de Git. La contraseña debe ser una clave SMTP de Brevo, no la contraseña de la
+cuenta ni una clave API. Activa este modo únicamente cuando `faircourt.es`
+aparezca autenticado en Brevo. STARTTLS valida el certificado del proveedor. Para un servidor que use
+TLS desde el inicio, configura `SMTP_USE_SSL=true`, desactiva
+`SMTP_STARTTLS` y utiliza normalmente el puerto 465. FairCourt limita las
+solicitudes consecutivas y nunca guarda el OTP en texto plano.
+
+La configuración guiada del dominio, los registros DNS y la primera prueba se
+describe en `docs/brevo-otp-setup.md`.
+
 La comunidad migrada inicialmente utiliza el identificador `faircourt`. Cada
 comunidad adicional dispone de su propio portal:
 
@@ -94,6 +130,15 @@ http://localhost:5173/c/comunidad-b
 El portal fija la comunidad durante el acceso. El JWT, las consultas del
 backend y las cachés PWA vuelven a comprobar ese ámbito; un residente no puede
 cambiar de comunidad manipulando identificadores o la URL.
+
+Para crear de forma explícita un administrador de plataforma en la base de
+datos configurada, ejecuta desde `faircourt-backend`:
+
+```powershell
+python -m scripts.bootstrap_platform_admin --email administrador@ejemplo.com
+```
+
+El comando no convierte cuentas de residentes existentes en administradores.
 
 Para cargar viviendas en la comunidad inicial:
 
@@ -149,7 +194,10 @@ de disponibilidad, reservas y promociones de lista de espera.
 
 ## Datos de demostración
 Para probar el registro pueden utilizarse los códigos de vivienda definidos en [Códigos de viviendas](faircourt-backend/households.txt) como por ejemplo: "A1", dentro del portal `faircourt`.
-Consultar OTP generado en terminal (modo desarrollo).
+Consultar el OTP generado en terminal en modo desarrollo. Con
+`OTP_DELIVERY_MODE=smtp`, el residente lo recibe en su correo y el código no se
+escribe en los logs.
 
 ## Documentación detallada sobre uso de la aplicación
 - [Manual de usuario](USER_MANUAL.md)
+- [Hoja de ruta del piloto](docs/pilot-roadmap.md)

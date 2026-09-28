@@ -179,9 +179,9 @@ function AdminLogin({
                   required
                   autoFocus
                 />
-                {import.meta.env.DEV && (
-                  <p className="field-hint">Consulta el OTP ADMIN en Uvicorn.</p>
-                )}
+                <p className="field-hint">
+                  Revisa el correo indicado, incluida la carpeta de spam.
+                </p>
               </>
             )}
             <Feedback error={action.error} />

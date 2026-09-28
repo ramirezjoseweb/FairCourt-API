@@ -161,11 +161,13 @@ def main() -> None:
             community,
             unique_codes,
         ) # Inserta las viviendas en la base de datos
+        community_name = community.name
+        community_slug = community.slug
     finally:
         db.close() # Cierra la sesion de base de datos
 
     print(
-        f"Seed completado para {community.name} ({community.slug}). "
+        f"Seed completado para {community_name} ({community_slug}). "
         f"Creadas: {created}. Ya existían: {skipped}."
     )
 
