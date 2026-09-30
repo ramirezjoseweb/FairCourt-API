@@ -33,7 +33,6 @@ test("auth: OTP payloads, errors, back, persistence and logout", async ({
   expect(
     state.requests.find((row) => row.path === "/auth/request-otp")?.body,
   ).toEqual({
-    community_slug: "faircourt",
     house_code: "A1",
     email: "vecino@faircourt.es",
   });
@@ -54,7 +53,6 @@ test("auth: OTP payloads, errors, back, persistence and logout", async ({
   expect(
     state.requests.find((row) => row.path === "/auth/verify-otp")?.body,
   ).toEqual({
-    community_slug: "faircourt",
     email: "vecino@faircourt.es",
     otp: "123456",
   });
@@ -88,6 +86,26 @@ test("auth: community portal fixes the OTP request scope", async ({ page }) => {
     community_slug: "community-b",
     house_code: "Bloque 18 3ºB",
     email: "resident-b@example.com",
+  });
+});
+test("auth: root portal accepts a Parque Venecia code without choosing a community", async ({ page }) => {
+  const state = await setup(page, { authenticated: false });
+  state.me.community_slug = "parque-venecia";
+  state.me.community_name = "Parque Venecia";
+  await page.goto("/");
+  await page.getByLabel("Código de vivienda").fill("PV0003");
+  await page.getByLabel("Correo electrónico").fill("vecino@faircourt.es");
+  await page.getByRole("button", { name: "Solicitar código de acceso" }).click();
+  expect(state.requests.find((row) => row.path === "/auth/request-otp")?.body).toEqual({
+    house_code: "PV0003",
+    email: "vecino@faircourt.es",
+  });
+  await page.getByLabel("Código de acceso", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "Entrar en FairCourt" }).click();
+  await expect(page.getByRole("heading", { name: "Qué bien tenerte de vuelta." })).toBeVisible();
+  expect(state.requests.find((row) => row.path === "/auth/verify-otp")?.body).toEqual({
+    email: "vecino@faircourt.es",
+    otp: "123456",
   });
 });
 test("admin: separate OTP, community selector and private context", async ({
@@ -128,6 +146,11 @@ test("admin: separate OTP, community selector and private context", async ({
     page.getByRole("heading", { name: "Auditoría administrativa privada" }),
   ).toBeVisible();
   await expect(page.getByText("ADMIN_COMMUNITY_SELECTED")).toBeVisible();
+  await page.getByLabel("Prefijo de vivienda").fill("GRP");
+  await page.getByRole("button", { name: "Guardar prefijo" }).click();
+  await expect(page.getByText("Los nuevos códigos de Gran Parque deben empezar por GRP.")).toBeVisible();
+  expect(state.requests.find((row) => row.path === "/admin/communities/1/access-prefix")?.body)
+    .toEqual({ access_prefix: "GRP" });
   await expect(
     page.getByRole("heading", { name: "Instalaciones", exact: true }),
   ).toBeVisible();
@@ -757,7 +780,7 @@ test("notifications: read state, cache and global counter update", async ({
   const cached = await page.evaluate(
     () =>
       JSON.parse(
-        localStorage.getItem("faircourt_cache_notifications__faircourt")!,
+        localStorage.getItem("faircourt_cache_notifications__global")!,
       ).data,
   );
   expect(cached.find((row: { id: number }) => row.id === 1).is_read).toBe(true);

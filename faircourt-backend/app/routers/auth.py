@@ -35,24 +35,39 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/request-otp", response_model=MessageOut)
 # La ruta final será: POST /auth/request-otp
 def request_otp(payload: RequestOTPIn, db: Session = Depends(get_db)):
-    community = (
-        db.query(Community)
-        .filter(Community.slug == payload.community_slug.strip().lower())
-        .filter(Community.is_active.is_(True))
-        .first()
-    )
-    if not community:
-        raise HTTPException(status_code=404, detail="Comunidad no válida o inactiva.")
-
-    # 1) Validar vivienda (lista blanca)
-    # Se comprueba que el código de vivienda existe en la tabla households
-    # y que está activo.
-    household = (
-        db.query(Household)
-        .filter(Household.community_id == community.id)
-        .filter(Household.code_normalized == normalize_household_code(payload.house_code))
-        .first()
-    )
+    code = normalize_household_code(payload.house_code)
+    if payload.community_slug is None:
+        matches = (
+            db.query(Household, Community)
+            .join(Community, Community.id == Household.community_id)
+            .filter(Household.code_normalized == code)
+            .filter(Community.is_active.is_(True))
+            .limit(2)
+            .all()
+        )
+        if len(matches) > 1:
+            raise HTTPException(
+                status_code=409,
+                detail="Este código existe en varias comunidades. Utiliza el enlace de tu comunidad.",
+            )
+        if not matches:
+            raise HTTPException(status_code=404, detail="Código de vivienda no válido o inactivo.")
+        household, community = matches[0]
+    else:
+        community = (
+            db.query(Community)
+            .filter(Community.slug == payload.community_slug.strip().lower())
+            .filter(Community.is_active.is_(True))
+            .first()
+        )
+        if not community:
+            raise HTTPException(status_code=404, detail="Comunidad no válida o inactiva.")
+        household = (
+            db.query(Household)
+            .filter(Household.community_id == community.id)
+            .filter(Household.code_normalized == code)
+            .first()
+        )
     
     if not household or not household.is_active:
         raise HTTPException(
@@ -175,12 +190,23 @@ def verify_otp(payload: VerifyOTPIn, db: Session = Depends(get_db)):
 
     # Normalizar el email para evitar problemas de mayúsculas/minúsculas
     email = str(payload.email).lower()
-    community = (
-        db.query(Community)
-        .filter(Community.slug == payload.community_slug.strip().lower())
-        .filter(Community.is_active.is_(True))
-        .first()
-    )
+    if payload.community_slug is None:
+        resident = (
+            db.query(User)
+            .filter(User.email == email)
+            .filter(User.role == UserRole.RESIDENT.value)
+            .first()
+        )
+        community = db.get(Community, resident.community_id) if resident else None
+        if community and not community.is_active:
+            community = None
+    else:
+        community = (
+            db.query(Community)
+            .filter(Community.slug == payload.community_slug.strip().lower())
+            .filter(Community.is_active.is_(True))
+            .first()
+        )
     if not community:
         raise HTTPException(status_code=404, detail="Comunidad no válida o inactiva.")
 

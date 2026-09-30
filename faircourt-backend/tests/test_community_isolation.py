@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from fastapi import HTTPException
+from jose import jwt
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -24,14 +25,14 @@ from app.models import (
     UnlockProposal,
     User,
 )
-from app.routers.auth import request_otp
+from app.routers.auth import request_otp, verify_otp
 from app.services.otp_delivery import OtpDeliveryError
 from app.routers.facilities import list_facilities
 from app.routers.community import read_community_policy
 from app.routers.notifications import mark_notification_as_read
 from app.routers.reservations import create_reservation
 from app.routers.unlock import cast_unlock_vote
-from app.schemas import CreateReservationIn, RequestOTPIn, UnlockVoteIn
+from app.schemas import CreateReservationIn, RequestOTPIn, UnlockVoteIn, VerifyOTPIn
 from app.services.rules import can_cancel_reservation, is_within_booking_window
 
 
@@ -119,6 +120,41 @@ class CommunityIsolationTests(unittest.TestCase):
             .all()
         )
         self.assertEqual({row.community_id for row in rows}, {1, 2})
+
+    def test_global_login_rejects_ambiguous_code_without_creating_otp(self) -> None:
+        with self.assertRaises(HTTPException) as raised:
+            request_otp(
+                payload=RequestOTPIn(
+                    house_code=self.household_b.code,
+                    email=self.user_b.email,
+                ),
+                db=self.db,
+            )
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertEqual(self.db.query(AuthOTP).count(), 0)
+
+    def test_global_login_resolves_unique_code_and_verifies_its_community(self) -> None:
+        self.household_b.code = "PV0003"
+        self.db.commit()
+        with patch("app.routers.auth.gen_otp", return_value="123456"), patch(
+            "app.routers.auth.deliver_otp"
+        ):
+            request_otp(
+                payload=RequestOTPIn(
+                    house_code=" pv0003 ",
+                    email=self.user_b.email,
+                ),
+                db=self.db,
+            )
+        otp = self.db.query(AuthOTP).one()
+        self.assertEqual(otp.community_id, self.community_b.id)
+        result = verify_otp(
+            payload=VerifyOTPIn(email=self.user_b.email, otp="123456"),
+            db=self.db,
+        )
+        claims = jwt.get_unverified_claims(result["access_token"])
+        self.assertEqual(claims["community_id"], self.community_b.id)
+        self.assertIsNotNone(otp.used_at)
 
     def test_duplicate_household_code_is_rejected_within_community(self) -> None:
         self.db.add(

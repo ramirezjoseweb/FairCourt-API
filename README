@@ -119,8 +119,12 @@ solicitudes consecutivas y nunca guarda el OTP en texto plano.
 La configuración guiada del dominio, los registros DNS y la primera prueba se
 describe en `docs/brevo-otp-setup.md`.
 
-La comunidad migrada inicialmente utiliza el identificador `faircourt`. Cada
-comunidad adicional dispone de su propio portal:
+Desde `/` el residente puede introducir su código y correo sin elegir una
+comunidad. El backend identifica la comunidad por el código exacto; si el
+mismo código existe en varias comunidades, detiene el acceso global y pide
+utilizar el enlace específico. El OTP y el JWT quedan asociados a la comunidad
+resuelta. La comunidad migrada inicialmente utiliza el identificador
+`faircourt`; también se conservan los portales específicos:
 
 ```text
 http://localhost:5173/c/comunidad-a
@@ -130,6 +134,13 @@ http://localhost:5173/c/comunidad-b
 El portal fija la comunidad durante el acceso. El JWT, las consultas del
 backend y las cachés PWA vuelven a comprobar ese ámbito; un residente no puede
 cambiar de comunidad manipulando identificadores o la URL.
+
+Un administrador puede configurar en cada comunidad un prefijo de 2–12 letras
+para sus códigos futuros. Se comprueba que no se solape con otro prefijo y que
+los códigos existentes ya lo respeten. Por eso los códigos provisionales del
+piloto conservan el prefijo vacío hasta sustituirlos por los definitivos.
+Aplica `alembic upgrade head` en la base de cada entorno antes de usar esta
+versión.
 
 Para crear de forma explícita un administrador de plataforma en la base de
 datos configurada, ejecuta desde `faircourt-backend`:

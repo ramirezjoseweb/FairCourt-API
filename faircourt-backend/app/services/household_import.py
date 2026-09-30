@@ -9,7 +9,7 @@ from pathlib import PurePath
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Household, User, UserRole, normalize_household_code
+from app.models import Community, Household, User, UserRole, normalize_household_code
 from app.services.audit import log_admin_event
 
 
@@ -49,6 +49,9 @@ def preview_household_csv(
     community_id: int,
     csv_text: str,
 ) -> dict:
+    community = db.get(Community, community_id)
+    if community is None:
+        raise HouseholdCsvError("Comunidad no encontrada.")
     text = csv_text.lstrip("\ufeff")
     try:
         dialect = csv.Sniffer().sniff(text[:4_096], delimiters=",;")
@@ -95,6 +98,10 @@ def preview_household_csv(
             errors.append("El código de vivienda está vacío.")
         elif len(code) > 50:
             errors.append("El código de vivienda supera 50 caracteres.")
+        elif community.access_prefix and not normalize_household_code(code).startswith(
+            community.access_prefix
+        ):
+            errors.append("El código no empieza por el prefijo de la comunidad.")
         if email:
             try:
                 email = str(EMAIL_ADAPTER.validate_python(email)).lower()

@@ -72,6 +72,7 @@ class Community(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     slug = Column(String, unique=True, index=True, nullable=False)
+    access_prefix = Column(String(12), unique=True, nullable=True)
     name = Column(String, nullable=False)
     timezone = Column(String, default="Europe/Madrid", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)

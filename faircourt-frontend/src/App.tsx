@@ -61,7 +61,7 @@ function ResidentApp({
     await action.run(async () => {
       if (step === "request") {
         const response = await requestOtp({
-          community_slug: communitySlug,
+          ...(communitySlug ? { community_slug: communitySlug } : {}),
           house_code: houseCode.trim(),
           email: email.trim(),
         });
@@ -69,7 +69,7 @@ function ResidentApp({
         setStep("verify");
       } else {
         const response = await verifyOtp({
-          community_slug: communitySlug,
+          ...(communitySlug ? { community_slug: communitySlug } : {}),
           email: email.trim(),
           otp: otp.trim(),
         });
@@ -150,7 +150,7 @@ function ResidentApp({
                   id="house-code"
                   value={houseCode}
                   onChange={(e) => setHouseCode(e.target.value)}
-                  placeholder="Por ejemplo, A1"
+                  placeholder="Por ejemplo, GRP0012 o PV0003"
                   autoComplete="username"
                   required
                   autoFocus

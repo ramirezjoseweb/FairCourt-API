@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.schemas import (
     AdminBasicPolicyUpdateIn,
+    AdminCommunityPrefixIn,
     AdminFacilityOut,
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
@@ -69,6 +70,7 @@ def _community_summary(db: Session, community: Community) -> dict:
     return {
         "id": community.id,
         "slug": community.slug,
+        "access_prefix": community.access_prefix,
         "name": community.name,
         "timezone": community.timezone,
         "is_active": community.is_active,
@@ -260,6 +262,58 @@ def list_admin_communities(
     return [_community_summary(db, community) for community in communities]
 
 
+@router.put(
+    "/communities/{community_id}/access-prefix",
+    response_model=CommunitySummaryOut,
+)
+def update_admin_community_prefix(
+    community_id: int,
+    payload: AdminCommunityPrefixIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_platform_admin),
+):
+    community = _community_or_404(db, community_id)
+    prefix = payload.access_prefix
+    if prefix:
+        other_prefixes = (
+            db.query(Community.access_prefix)
+            .filter(Community.id != community_id)
+            .filter(Community.access_prefix.is_not(None))
+            .all()
+        )
+        if any(
+            other.startswith(prefix) or prefix.startswith(other)
+            for (other,) in other_prefixes
+        ):
+            raise HTTPException(status_code=409, detail="El prefijo se solapa con el de otra comunidad.")
+        invalid_household = (
+            db.query(Household.id)
+            .filter(Household.community_id == community_id)
+            .filter(~Household.code_normalized.startswith(prefix))
+            .first()
+        )
+        if invalid_household:
+            raise HTTPException(
+                status_code=409,
+                detail="Hay viviendas cuyo código no empieza por ese prefijo.",
+            )
+    previous = community.access_prefix
+    community.access_prefix = prefix
+    log_admin_event(
+        db,
+        event="ADMIN_COMMUNITY_PREFIX_UPDATED",
+        admin_user_id=admin.id,
+        community_id=community.id,
+        metadata={"previous_prefix": previous, "access_prefix": prefix},
+    )
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="El prefijo ya está en uso.") from error
+    return _community_summary(db, community)
+
+
 @router.post(
     "/communities/{community_id}/select",
     response_model=CommunitySummaryOut,
@@ -314,8 +368,10 @@ def create_admin_household(
     db: Session = Depends(get_db),
     admin: User = Depends(require_platform_admin),
 ):
-    _community_or_404(db, community_id)
+    community = _community_or_404(db, community_id)
     normalized_code = normalize_household_code(payload.code)
+    if community.access_prefix and not normalized_code.startswith(community.access_prefix):
+        raise HTTPException(status_code=422, detail="El código debe comenzar por el prefijo de la comunidad.")
     duplicate = (
         db.query(Household)
         .filter(Household.community_id == community_id)
@@ -417,9 +473,11 @@ def update_admin_household(
     db: Session = Depends(get_db),
     admin: User = Depends(require_platform_admin),
 ):
-    _community_or_404(db, community_id)
+    community = _community_or_404(db, community_id)
     household = _household_or_404(db, community_id, household_id)
     normalized_code = normalize_household_code(payload.code)
+    if community.access_prefix and not normalized_code.startswith(community.access_prefix):
+        raise HTTPException(status_code=422, detail="El código debe comenzar por el prefijo de la comunidad.")
     duplicate = (
         db.query(Household)
         .filter(Household.community_id == community_id)

@@ -8,13 +8,13 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 
 # Clase de la petición de OTP 
 class RequestOTPIn(BaseModel):
-    community_slug: str = Field(default="faircourt", min_length=1, max_length=80)
+    community_slug: str | None = Field(default=None, min_length=1, max_length=80)
     house_code: str = Field(min_length=1, max_length=50)
     email: EmailStr
 
 # Clase de la verificación de OTP 
 class VerifyOTPIn(BaseModel):
-    community_slug: str = Field(default="faircourt", min_length=1, max_length=80)
+    community_slug: str | None = Field(default=None, min_length=1, max_length=80)
     email: EmailStr
     otp: str = Field(min_length=4, max_length=12)
 
@@ -47,11 +47,26 @@ class AdminMeOut(BaseModel):
 class CommunitySummaryOut(BaseModel):
     id: int
     slug: str
+    access_prefix: str | None
     name: str
     timezone: str
     is_active: bool
     household_count: int
     facility_count: int
+
+
+class AdminCommunityPrefixIn(BaseModel):
+    access_prefix: str | None = Field(default=None, max_length=12)
+
+    @field_validator("access_prefix")
+    @classmethod
+    def normalize_access_prefix(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        normalized = value.strip().upper()
+        if not re.fullmatch(r"[A-Z]{2,12}", normalized):
+            raise ValueError("El prefijo debe contener de 2 a 12 letras sin espacios.")
+        return normalized
 
 
 class AdminHouseholdCreateIn(BaseModel):

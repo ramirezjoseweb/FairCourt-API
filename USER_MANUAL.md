@@ -17,6 +17,10 @@ Para iniciar sesión se deberá de asociar la primera vez el código de
 vivienda con un correo electrónico, dicho correo tiene que ser siempre el mismo 
 posteriormente para que el sistema te permita iniciar sesión con el código de 
 vivienda asociado. 
+La entrada general `/` identifica la comunidad por el código exacto de vivienda.
+Si ese código se repite entre comunidades, utiliza el enlace `/c/<comunidad>`
+facilitado por la administración. Los prefijos `GRP` y `PV` son ejemplos para
+los futuros códigos definitivos, no códigos de viviendas ya confirmados.
 1. Introduce código de vivienda + correo electrónico. 
 2. Solicita el código OTP. En el entorno publicado se recibe por correo; en
    desarrollo se muestra únicamente en la terminal de Uvicorn.

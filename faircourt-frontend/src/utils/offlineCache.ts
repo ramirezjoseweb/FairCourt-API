@@ -23,7 +23,7 @@ function getCommunityCacheScope(): string {
             // Los fixtures y tokens antiguos pueden no contener claims legibles.
         }
     }
-    return getCommunitySlug();
+    return getCommunitySlug() ?? "global";
 }
 
 /**

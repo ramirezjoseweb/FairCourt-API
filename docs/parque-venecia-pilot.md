@@ -21,6 +21,10 @@ La prueba local contiene ocho viviendas, desde `PILOTO-01` hasta `PILOTO-08`.
 Son identificadores temporales porque todavía no se conocen los bloques ni la
 numeración real. Sus correos son alias controlados de la cuenta del responsable,
 por lo que ningún vecino recibirá mensajes durante las pruebas.
+Se puede probar `PILOTO-01` desde la entrada general `/`, porque actualmente
+identifica una única vivienda. El prefijo definitivo `PV` se configurará en el
+panel cuando se conozcan los códigos reales y las viviendas existentes lo
+respeten; no se han inventado códigos `PV000X` para residentes reales.
 
 El archivo local que contiene esos correos termina en `.local.csv` y está
 excluido de Git. Cuando se disponga del listado real, debe prepararse un CSV con

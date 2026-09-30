@@ -249,6 +249,7 @@ export async function setup(
       {
         id: 1,
         slug: "gran-parque",
+        access_prefix: null,
         name: "Gran Parque",
         timezone: "Europe/Madrid",
         is_active: true,
@@ -258,6 +259,7 @@ export async function setup(
       {
         id: 2,
         slug: "community-b",
+        access_prefix: null,
         name: "Comunidad B",
         timezone: "Europe/Madrid",
         is_active: true,
@@ -442,6 +444,15 @@ export async function setup(
     else if (path === "/admin/me")
       data = { id: 90, email: "admin@faircourt.es", role: "platform_admin" };
     else if (path === "/admin/communities") data = state.adminCommunities;
+    else if (path.match(/^\/admin\/communities\/\d+\/access-prefix$/)) {
+      const community = state.adminCommunities.find(
+        (item) => item.id === Number(path.split("/")[3]),
+      );
+      if (community) {
+        community.access_prefix = (request.postDataJSON() as { access_prefix: string | null }).access_prefix;
+      }
+      data = community;
+    }
     else if (path.match(/^\/admin\/communities\/\d+\/select$/))
       data = state.adminCommunities.find(
         (community) => community.id === Number(path.split("/")[3]),

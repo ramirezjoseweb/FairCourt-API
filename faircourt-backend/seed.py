@@ -95,6 +95,10 @@ def upsert_households(
         code = code.strip()
         if not code:
             continue
+        if community.access_prefix and not normalize_household_code(code).startswith(
+            community.access_prefix
+        ):
+            raise ValueError("El código no empieza por el prefijo de la comunidad.")
 
         exists = (
             db.query(Household)

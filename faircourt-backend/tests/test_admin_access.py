@@ -27,6 +27,7 @@ from app.models import (
     UserRole,
 )
 from app.routers.admin import (
+    update_admin_community_prefix,
     confirm_admin_household_import,
     create_admin_household,
     create_admin_facility,
@@ -46,6 +47,7 @@ from app.routers.admin import (
 )
 from app.routers.audit import get_my_audit_logs
 from app.schemas import (
+    AdminCommunityPrefixIn,
     AdminBasicPolicyUpdateIn,
     AdminFacilityWriteIn,
     AdminHouseholdCreateIn,
@@ -703,6 +705,49 @@ class AdminAccessTests(unittest.TestCase):
             ["ADMIN_BASIC_POLICY_UPDATED"],
         )
         self.assertEqual(get_my_audit_logs(db=self.db, current_user=self.resident), [])
+
+    def test_prefix_requires_existing_codes_and_blocks_overlapping_prefixes(self) -> None:
+        with self.assertRaises(HTTPException) as mismatch:
+            update_admin_community_prefix(
+                self.community_a.id,
+                AdminCommunityPrefixIn(access_prefix="PV"),
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(mismatch.exception.status_code, 409)
+
+        saved = update_admin_community_prefix(
+            self.community_a.id,
+            AdminCommunityPrefixIn(access_prefix="grp"),
+            db=self.db,
+            admin=self.admin,
+        )
+        self.assertEqual(saved["access_prefix"], "GRP")
+        with self.assertRaises(HTTPException) as wrong_code:
+            create_admin_household(
+                community_id=self.community_a.id,
+                payload=AdminHouseholdCreateIn(code="PV0001"),
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(wrong_code.exception.status_code, 422)
+        preview = preview_admin_household_import(
+            community_id=self.community_a.id,
+            payload=AdminHouseholdCsvIn(
+                csv_text="codigo_vivienda;correo;activa\nPV0002;;si\n",
+            ),
+            db=self.db,
+            _admin=self.admin,
+        )
+        self.assertEqual(preview["error_count"], 1)
+        with self.assertRaises(HTTPException) as overlap:
+            update_admin_community_prefix(
+                self.community_b.id,
+                AdminCommunityPrefixIn(access_prefix="GR"),
+                db=self.db,
+                admin=self.admin,
+            )
+        self.assertEqual(overlap.exception.status_code, 409)
 
 
 if __name__ == "__main__":

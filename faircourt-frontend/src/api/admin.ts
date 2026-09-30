@@ -15,6 +15,7 @@ export type AdminMe = {
 export type CommunitySummary = {
   id: number;
   slug: string;
+  access_prefix: string | null;
   name: string;
   timezone: string;
   is_active: boolean;
@@ -156,6 +157,13 @@ export function selectAdminCommunity(communityId: number) {
   return adminApiRequest<CommunitySummary>(
     `/admin/communities/${communityId}/select`,
     { method: "POST" },
+  );
+}
+
+export function updateAdminCommunityPrefix(communityId: number, accessPrefix: string | null) {
+  return adminApiRequest<CommunitySummary>(
+    `/admin/communities/${communityId}/access-prefix`,
+    { method: "PUT", body: JSON.stringify({ access_prefix: accessPrefix }) },
   );
 }
 

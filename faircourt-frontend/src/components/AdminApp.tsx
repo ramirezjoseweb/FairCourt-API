@@ -13,6 +13,7 @@ import {
   requestAdminOtp,
   selectAdminCommunity,
   updateAdminBasicPolicy,
+  updateAdminCommunityPrefix,
   updateAdminFacility,
   updateAdminHousehold,
   updateAdminHouseholdAccess,
@@ -358,6 +359,8 @@ function CommunityWorkspace({
   const [facilities, setFacilities] = useState(initialFacilities);
   const [households, setHouseholds] = useState(initialHouseholds);
   const [householdCount, setHouseholdCount] = useState(community.household_count);
+  const [accessPrefix, setAccessPrefix] = useState(community.access_prefix ?? "");
+  const [savedAccessPrefix, setSavedAccessPrefix] = useState(community.access_prefix);
   const [householdSearch, setHouseholdSearch] = useState("");
   const [householdForm, setHouseholdForm] = useState<
     AdminHousehold | "new" | null
@@ -479,6 +482,20 @@ function CommunityWorkspace({
     if (success) setPolicyFormOpen(false);
   }
 
+  async function saveAccessPrefix(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const success = await action.run(async () => {
+      const updated = await updateAdminCommunityPrefix(
+        community.id,
+        accessPrefix.trim() || null,
+      );
+      setSavedAccessPrefix(updated.access_prefix);
+      setAccessPrefix(updated.access_prefix ?? "");
+      setAuditItems(await getAdminCommunityAudit(community.id));
+    }, "El prefijo de acceso se ha actualizado.");
+    return success;
+  }
+
   return (
     <section className="page-stack">
       <header className="page-heading">
@@ -497,6 +514,26 @@ function CommunityWorkspace({
         Todas las operaciones de esta pantalla pertenecen exclusivamente a <strong>{community.name}</strong>.
       </Notice>
       <Feedback error={action.error} message={action.message} />
+      <section className="panel" aria-labelledby="admin-access-prefix-title">
+        <h2 id="admin-access-prefix-title">Prefijo de acceso</h2>
+        <p className="muted small">
+          {savedAccessPrefix
+            ? `Los nuevos códigos de ${community.name} deben empezar por ${savedAccessPrefix}.`
+            : "Opcional. Actívalo cuando todos los códigos de vivienda tengan el prefijo definitivo."}
+        </p>
+        <form onSubmit={saveAccessPrefix} className="admin-section-actions">
+          <label htmlFor="community-access-prefix">Prefijo de vivienda</label>
+          <input
+            id="community-access-prefix"
+            value={accessPrefix}
+            onChange={(event) => setAccessPrefix(event.target.value.toUpperCase())}
+            maxLength={12}
+            pattern="[A-Za-z]{2,12}"
+            placeholder="Ej. PV o GRP"
+          />
+          <Button type="submit" disabled={action.busy}>Guardar prefijo</Button>
+        </form>
+      </section>
       <section className="panel admin-households-panel" aria-labelledby="admin-households-title">
         <div className="section-heading admin-section-heading">
           <div>
@@ -517,7 +554,7 @@ function CommunityWorkspace({
           </div>
         </div>
         <p className="muted small admin-household-explanation">
-          Cada código pertenece solo a esta comunidad. El residente vinculará su correo en el primer acceso.
+          El código debe identificar una única vivienda para el acceso general. Si se repite en otra comunidad, usa el enlace específico de esta comunidad.
         </p>
         {households.length ? (
           <>

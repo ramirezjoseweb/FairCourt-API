@@ -47,7 +47,8 @@ export function Dashboard({
   const unread =
     notifications.data?.filter((item) => !item.is_read).length ?? 0;
   useEffect(() => {
-    if (me.data && me.data.community_slug !== getCommunitySlug()) {
+    const scopedSlug = getCommunitySlug();
+    if (me.data && scopedSlug && me.data.community_slug !== scopedSlug) {
       onLogout();
     }
   }, [me.data, onLogout]);
