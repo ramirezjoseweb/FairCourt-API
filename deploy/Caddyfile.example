@@ -1,0 +1,19 @@
+faircourt.es {
+    encode zstd gzip
+
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+        X-Frame-Options DENY
+    }
+
+    handle_path /api/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle {
+        root * /srv/faircourt/release/faircourt-frontend/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

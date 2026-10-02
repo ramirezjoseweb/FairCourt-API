@@ -87,9 +87,8 @@ npm 11.12.1 o superior
 ### Entrega del OTP
 
 En desarrollo no hace falta configurar un proveedor: el modo predeterminado
-`console` imprime el OTP en la terminal de Uvicorn. Para preparar un entorno
-publicado, copia `faircourt-backend/.env.example` como
-`faircourt-backend/.env`, configura una clave `SECRET_KEY` propia y cambia:
+`console` imprime el OTP en la terminal de Uvicorn. Para probar SMTP en local,
+copia `faircourt-backend/.env.example` como `faircourt-backend/.env` y cambia:
 
 ```dotenv
 OTP_DELIVERY_MODE=smtp
@@ -108,8 +107,8 @@ SMTP_USE_SSL=false
 mantiene `sqlite:///./faircourt.db`; las pruebas manuales que necesiten migrar
 datos deben apuntar a una copia local y no alterar la base versionada.
 
-Las credenciales reales pertenecen solo al archivo `.env`, que está excluido
-de Git. La contraseña debe ser una clave SMTP de Brevo, no la contraseña de la
+Las credenciales reales pertenecen a un archivo de entorno excluido de Git.
+La contraseña debe ser una clave SMTP de Brevo, no la contraseña de la
 cuenta ni una clave API. Activa este modo únicamente cuando `faircourt.es`
 aparezca autenticado en Brevo. STARTTLS valida el certificado del proveedor. Para un servidor que use
 TLS desde el inicio, configura `SMTP_USE_SSL=true`, desactiva
@@ -118,6 +117,10 @@ solicitudes consecutivas y nunca guarda el OTP en texto plano.
 
 La configuración guiada del dominio, los registros DNS y la primera prueba se
 describe en `docs/brevo-otp-setup.md`.
+
+Para preparar la publicación privada de Gran Parque y Parque Venecia sin copiar
+la base local de desarrollo, consulta `docs/despliegue-privado.md`. En el VPS,
+los secretos se guardan en `/etc/faircourt/app.env`, no en el repositorio.
 
 Desde `/` el residente puede introducir su código y correo sin elegir una
 comunidad. El backend identifica la comunidad por el código exacto; si el

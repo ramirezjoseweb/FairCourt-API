@@ -1,11 +1,19 @@
 import os
+from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from sqlalchemy.engine import make_url
 
 
-load_dotenv()
+_configured_env_file = os.getenv("FAIRCOURT_ENV_FILE")
+if _configured_env_file:
+    if not Path(_configured_env_file).is_file():
+        raise RuntimeError("FAIRCOURT_ENV_FILE no existe.")
+    load_dotenv(_configured_env_file)
+else:
+    load_dotenv()
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -26,7 +34,11 @@ def _env_int(name: str, default: int) -> int:
 
 
 class Settings(BaseModel):
-    model_config = ConfigDict(validate_default=True)
+    model_config = ConfigDict(validate_default=True, hide_input_in_errors=True)
+
+    APP_ENV: Literal["development", "production"] = Field(
+        default_factory=lambda: os.getenv("APP_ENV", "development").strip().lower()
+    )
 
     SECRET_KEY: str = Field(
         default_factory=lambda: os.getenv(
@@ -138,6 +150,29 @@ class Settings(BaseModel):
                 raise ValueError(
                     "El modo SMTP requiere host, usuario, contraseña y remitente."
                 )
+        if self.APP_ENV == "production":
+            database_url = make_url(self.DATABASE_URL)
+            database_path = Path(database_url.database or "")
+            repository_dir = Path(__file__).resolve().parents[2]
+            if (
+                database_url.get_backend_name() != "sqlite"
+                or not database_path.is_absolute()
+                or database_path.resolve().is_relative_to(repository_dir)
+            ):
+                raise ValueError(
+                    "Producción requiere una base SQLite con ruta absoluta fuera del repositorio."
+                )
+            if (
+                len(self.SECRET_KEY) < 32
+                or self.SECRET_KEY == "dev-change-me-to-a-long-random-secret"
+            ):
+                raise ValueError("Producción requiere una SECRET_KEY aleatoria de al menos 32 caracteres.")
+            if self.OTP_DELIVERY_MODE != "smtp" or self.DEV_PRINT_OTP:
+                raise ValueError("Producción requiere OTP por SMTP y DEV_PRINT_OTP=false.")
+            if not (self.SMTP_STARTTLS or self.SMTP_USE_SSL):
+                raise ValueError("Producción requiere cifrado TLS para SMTP.")
+            if not self.CHECKIN_BASE_URL.startswith("https://"):
+                raise ValueError("Producción requiere CHECKIN_BASE_URL con HTTPS.")
         return self
 
 

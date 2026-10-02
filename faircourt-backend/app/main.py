@@ -14,6 +14,7 @@ Este módulo actúa como punto de entrada del backend.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.config import settings
 
 from app.routers.auth import router as auth_router
 from app.routers.users import router as users_router
@@ -38,11 +39,14 @@ app = FastAPI(
     title="FairCourt API",
     description="API para la gestión justa de instalaciones comunitarias.",
     version="0.2.0",
+    docs_url=None if settings.APP_ENV == "production" else "/docs",
+    redoc_url=None if settings.APP_ENV == "production" else "/redoc",
+    openapi_url=None if settings.APP_ENV == "production" else "/openapi.json",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
+    allow_origins=[] if settings.APP_ENV == "production" else [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:4173",

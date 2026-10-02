@@ -1,0 +1,21 @@
+[Unit]
+Description=Encrypted off-site FairCourt SQLite backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=faircourt
+Group=faircourt
+WorkingDirectory=/srv/faircourt/release
+EnvironmentFile=/etc/faircourt/app.env
+EnvironmentFile=/etc/faircourt/backup.env
+Environment=RESTIC_CACHE_DIR=/var/lib/faircourt/restic-cache
+StateDirectory=faircourt
+StateDirectoryMode=0700
+ExecStart=/srv/faircourt/release/faircourt-backend/.venv/bin/python /srv/faircourt/release/deploy/backup_sqlite.py
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/faircourt

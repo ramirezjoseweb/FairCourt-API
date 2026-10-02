@@ -8,8 +8,9 @@ necesidad observada durante el piloto.
    y configurar un proveedor SMTP seguro en el entorno publicado.
 2. **Preparar Comunidad B.** Configurar la pista, sus horarios, las reglas
    acordadas y una primera carga de 5–10 viviendas con correos verificados.
-3. **Desplegar un entorno privado.** Usar HTTPS, almacenamiento persistente y
-   copias de seguridad antes de invitar residentes.
+3. **Desplegar un entorno privado.** Publicar Gran Parque y Parque Venecia en
+   un servicio con HTTPS, almacenamiento persistente y copias de seguridad
+   antes de invitar residentes. Ver [guía de despliegue](despliegue-privado.md).
 4. **Completar un ciclo real.** Verificar OTP, aislamiento comunitario, reserva,
    cancelación, límites, uso móvil y recuperación administrativa de acceso.
 5. **Priorizar evidencia.** Registrar los problemas observados y desarrollar

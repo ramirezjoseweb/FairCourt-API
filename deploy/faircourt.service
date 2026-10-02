@@ -1,0 +1,25 @@
+[Unit]
+Description=FairCourt API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=faircourt
+Group=faircourt
+WorkingDirectory=/srv/faircourt/release/faircourt-backend
+EnvironmentFile=/etc/faircourt/app.env
+StateDirectory=faircourt
+StateDirectoryMode=0700
+ExecStartPre=/srv/faircourt/release/faircourt-backend/.venv/bin/alembic upgrade head
+ExecStart=/srv/faircourt/release/faircourt-backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/faircourt
+
+[Install]
+WantedBy=multi-user.target
